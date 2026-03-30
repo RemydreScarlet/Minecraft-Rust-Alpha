@@ -1,5 +1,7 @@
 struct Uniforms {
     proj_matrix: mat4x4<f32>,
+    view_matrix: mat4x4<f32>,
+    model_matrix: mat4x4<f32>,
 };
 
 @group(0) @binding(0)
@@ -18,7 +20,9 @@ struct VertexOutput {
 @vertex
 fn vs_main(vertex: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = uniforms.proj_matrix * vec4<f32>(vertex.position, 1.0);
+    let world_pos = uniforms.model_matrix * vec4<f32>(vertex.position, 1.0);
+    let view_pos = uniforms.view_matrix * world_pos;
+    out.clip_position = uniforms.proj_matrix * view_pos;
     out.color = vertex.color;
     return out;
 }
