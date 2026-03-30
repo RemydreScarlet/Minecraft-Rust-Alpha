@@ -24,8 +24,6 @@ pub struct MinecraftAlpha {
 impl MinecraftAlpha {
     /// Create a new game instance
     pub fn new() -> Result<Self> {
-        env_logger::init();
-        
         let engine = crate::engine::Engine::new()?;
         let world = crate::world::world::World::new(0);
         
@@ -35,10 +33,10 @@ impl MinecraftAlpha {
         })
     }
     
-    /// Run the main game loop with multithreading support
+    /// Run the main game loop with WebGPU rendering
     pub fn run(&mut self) -> Result<()> {
-        println!("Starting Minecraft Alpha 1.1.2_01 - Rust (Multithreaded Edition)");
-        println!("Features: Parallel world updates, dedicated world thread, improved performance");
+        println!("Starting Minecraft Alpha 1.1.2_01 - Rust (WebGPU Edition)");
+        println!("Features: WebGPU rendering, depth buffer, modular architecture");
         
         self.engine.run(self.world.clone())
     }
