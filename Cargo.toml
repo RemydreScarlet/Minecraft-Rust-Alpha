@@ -1,0 +1,18 @@
+[package]
+name = "minecraft-alpha-rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+winit = "0.29"
+wgpu = "0.19"
+glam = "0.25"
+libm = "0.2"
+java-rand = "0.1"
+rayon = "1.8"
+tokio = { version = "1.0", features = ["full"] }
+bevy_ecs = "0.13"
+bytemuck = { version = "1.14", features = ["derive"] }
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
