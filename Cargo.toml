@@ -3,6 +3,10 @@ name = "minecraft-alpha-rust"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "minecraft-alpha-rust"
+path = "src/main.rs"
+
 [dependencies]
 winit = "0.29"
 wgpu = "0.19"

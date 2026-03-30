@@ -19,7 +19,6 @@ use anyhow::Result;
 pub struct MinecraftAlpha {
     engine: crate::engine::Engine,
     world: crate::world::world::World,
-    renderer: crate::render::Renderer,
 }
 
 impl MinecraftAlpha {
@@ -29,17 +28,18 @@ impl MinecraftAlpha {
         
         let engine = crate::engine::Engine::new()?;
         let world = crate::world::world::World::new(0);
-        let renderer = crate::render::Renderer::new()?;
         
         Ok(Self {
             engine,
             world,
-            renderer,
         })
     }
     
-    /// Run the main game loop
+    /// Run the main game loop with multithreading support
     pub fn run(&mut self) -> Result<()> {
-        self.engine.run(self.world.clone(), self.renderer.clone())
+        println!("Starting Minecraft Alpha 1.1.2_01 - Rust (Multithreaded Edition)");
+        println!("Features: Parallel world updates, dedicated world thread, improved performance");
+        
+        self.engine.run(self.world.clone())
     }
 }
