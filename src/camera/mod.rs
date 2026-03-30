@@ -101,7 +101,7 @@ impl Camera {
         self.rotation.x = clamp(self.rotation.x, -89.0, 89.0);
         
         // Normalize yaw to 0-360 range
-        self.rotation.y = self.rotation.y % 360.0;
+        self.rotation.y %= 360.0;
     }
     
     /// Calculate the view matrix for this camera

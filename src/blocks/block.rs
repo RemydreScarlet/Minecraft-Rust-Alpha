@@ -27,3 +27,9 @@ impl BlockRegistry {
         }
     }
 }
+
+impl Default for BlockRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

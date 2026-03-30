@@ -194,7 +194,7 @@ impl ChunkMesh {
         };
 
         // Check if neighbor is outside chunk bounds (always render chunk boundaries)
-        if check_x < 0 || check_x >= 16 || check_y < 0 || check_y >= 128 || check_z < 0 || check_z >= 16 {
+        if !(0..16).contains(&check_x) || !(0..128).contains(&check_y) || !(0..16).contains(&check_z) {
             return true;
         }
 
@@ -233,5 +233,11 @@ impl ChunkMesh {
     /// Get vertex buffer layout descriptor
     pub fn vertex_buffer_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         BlockVertex::desc()
+    }
+}
+
+impl Default for ChunkMesh {
+    fn default() -> Self {
+        Self::new()
     }
 }

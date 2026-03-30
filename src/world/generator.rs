@@ -7,6 +7,16 @@ use crate::math::position::{ChunkPos, LocalPos};
 use crate::world::chunk::Chunk;
 use noise::{NoiseFn, Perlin, Simplex};
 
+/// Parameters for ore vein generation
+struct OreVeinParams {
+    start_x: i32,
+    start_y: i32,
+    start_z: i32,
+    ore_id: u8,
+    vein_size: i32,
+    seed: u64,
+}
+
 /// Advanced Minecraft Alpha terrain generator
 /// 
 /// Implements the full 3D noise-based terrain generation system
@@ -15,12 +25,9 @@ use noise::{NoiseFn, Perlin, Simplex};
 pub struct WorldGenerator {
     // Noise generators for different terrain features
     biome_noise: Simplex,
-    depth_noise: Perlin,
     coarse_terrain: Simplex,
     fine_terrain1: Perlin,
     fine_terrain2: Perlin,
-    cave_noise: Perlin,
-    ore_noise: Simplex,
     
     world_seed: u64,
 }
@@ -30,12 +37,9 @@ impl WorldGenerator {
     pub fn new(seed: u64) -> Self {
         Self {
             biome_noise: Simplex::new(seed as u32),
-            depth_noise: Perlin::new(seed.wrapping_add(1) as u32),
             coarse_terrain: Simplex::new(seed.wrapping_add(2) as u32),
             fine_terrain1: Perlin::new(seed.wrapping_add(3) as u32),
             fine_terrain2: Perlin::new(seed.wrapping_add(4) as u32),
-            cave_noise: Perlin::new(seed.wrapping_add(5) as u32),
-            ore_noise: Simplex::new(seed.wrapping_add(6) as u32),
             world_seed: seed,
         }
     }
@@ -118,7 +122,7 @@ impl WorldGenerator {
                 let noise_z = world_z as f64 * 0.05;
                 
                 let snow_noise = self.biome_noise.get([noise_x, 0.0, noise_z]);
-                let desert_noise = self.biome_noise.get([noise_z as f64, 109.0134, world_x as f64]);
+                let desert_noise = self.biome_noise.get([noise_z, 109.0134, world_x as f64]);
                 
                 let is_snow = snow_noise > 0.3;
                 let is_desert = desert_noise > 0.3;
@@ -205,7 +209,7 @@ impl WorldGenerator {
                             let world_z = z as i32 + dz;
                             
                             // Check if position is in this chunk
-                            if world_x >= 0 && world_x < 16 && world_y >= 0 && world_y < 128 && world_z >= 0 && world_z < 16 {
+                            if (0..16).contains(&world_x) && (0..128).contains(&world_y) && (0..16).contains(&world_z) {
                                 let pos = LocalPos::new(world_x, world_y, world_z);
                                 if chunk.get_block(pos) == 1 { // Stone
                                     chunk.set_block(pos, 0); // Air
@@ -223,7 +227,7 @@ impl WorldGenerator {
             z += ((step_seed >> 24).wrapping_sub(200) % 401) as f64 / 100.0 - 2.0;
             
             // Keep Y in bounds
-            y = y.max(5.0).min(123.0);
+            y = y.clamp(5.0, 123.0);
         }
     }
     
@@ -252,36 +256,44 @@ impl WorldGenerator {
                 let start_y = ((seed >> 8) % max_y) as i32;
                 let start_z = base_z + ((seed % 16) as i32);
                 
-                self.generate_ore_vein(start_x, start_y, start_z, ore_id, vein_size, seed, chunk);
+                self.generate_ore_vein(OreVeinParams {
+                    start_x,
+                    start_y,
+                    start_z,
+                    ore_id,
+                    vein_size,
+                    seed,
+                }, chunk);
             }
         }
     }
     
+    
     /// Generate a single ore vein
-    fn generate_ore_vein(&self, start_x: i32, start_y: i32, start_z: i32, ore_id: u8, vein_size: i32, seed: u64, chunk: &mut Chunk) {
+    fn generate_ore_vein(&self, params: OreVeinParams, chunk: &mut Chunk) {
         let mut placed = 0;
         
-        for offset in 0..vein_size {
-            let offset_seed = seed.wrapping_add(offset as u64);
+        for offset in 0..params.vein_size {
+            let offset_seed = params.seed.wrapping_add(offset as u64);
             
             let dx = ((offset_seed >> 16) % 7) as i32 - 3;
             let dy = ((offset_seed >> 8) % 7) as i32 - 3;
             let dz = (offset_seed % 7) as i32 - 3;
             
-            let world_x = start_x + dx;
-            let world_y = start_y + dy;
-            let world_z = start_z + dz;
+            let world_x = params.start_x + dx;
+            let world_y = params.start_y + dy;
+            let world_z = params.start_z + dz;
             
             // Check if position is in chunk and is stone
-            if world_x >= 0 && world_x < 16 && world_y >= 0 && world_y < 128 && world_z >= 0 && world_z < 16 {
+            if (0..16).contains(&world_x) && (0..128).contains(&world_y) && (0..16).contains(&world_z) {
                 let pos = LocalPos::new(world_x, world_y, world_z);
                 if chunk.get_block(pos) == 1 { // Stone
-                    chunk.set_block(pos, ore_id);
+                    chunk.set_block(pos, params.ore_id);
                     placed += 1;
                 }
             }
             
-            if placed >= vein_size {
+            if placed >= params.vein_size {
                 break;
             }
         }

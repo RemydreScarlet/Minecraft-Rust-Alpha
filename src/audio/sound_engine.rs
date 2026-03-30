@@ -21,3 +21,9 @@ impl SoundEngine {
         println!("Playing sound: {}", sound_name);
     }
 }
+
+impl Default for SoundEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}

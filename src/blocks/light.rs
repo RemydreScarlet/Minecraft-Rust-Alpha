@@ -16,8 +16,14 @@ impl LightSystem {
     }
     
     /// Calculate light level for a block
-    pub fn calculate_light(&self, block_x: i32, block_y: i32, block_z: i32) -> u8 {
+    pub fn calculate_light(&self, _block_x: i32, _block_y: i32, _block_z: i32) -> u8 {
         // Light calculation will go here
         15
+    }
+}
+
+impl Default for LightSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }

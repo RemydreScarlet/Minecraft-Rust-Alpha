@@ -20,14 +20,14 @@ use anyhow::Result;
 /// Main game interface
 pub struct MinecraftAlpha {
     engine: crate::engine::Engine,
-    world: crate::world::world::World,
+    world: crate::world::world_manager::World,
 }
 
 impl MinecraftAlpha {
     /// Create a new game instance
     pub fn new() -> Result<Self> {
         let engine = crate::engine::Engine::new()?;
-        let world = crate::world::world::World::new(0);
+        let world = crate::world::world_manager::World::new(0);
         
         Ok(Self {
             engine,

@@ -2,7 +2,6 @@
 //! 
 //! This module implements the chunk system equivalent to `ga.java`.
 
-use crate::math::position::{ChunkPos, LocalPos};
 
 /// Chunk data structure
 #[derive(Clone)]

@@ -21,3 +21,9 @@ impl MusicSystem {
         println!("Playing background music");
     }
 }
+
+impl Default for MusicSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}

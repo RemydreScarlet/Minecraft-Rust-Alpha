@@ -35,3 +35,9 @@ impl WorldStorage {
         self.chunks.remove(&pos)
     }
 }
+
+impl Default for WorldStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}

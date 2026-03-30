@@ -9,7 +9,7 @@ use std::time::Instant;
 
 pub mod threading;
 
-use crate::world::world::World;
+use crate::world::world_manager::World;
 use crate::engine::threading::ThreadManager;
 use crate::render::Renderer;
 use crate::camera::Camera;
@@ -23,7 +23,7 @@ pub struct Engine {
 impl Engine {
     /// Create a new engine instance
     pub fn new() -> Result<Self> {
-        let thread_manager = Some(ThreadManager::new(crate::world::world::World::new(0)));
+        let thread_manager = Some(ThreadManager::new(crate::world::world_manager::World::new(0)));
         
         Ok(Self {
             thread_manager,

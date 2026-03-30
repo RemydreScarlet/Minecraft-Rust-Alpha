@@ -79,12 +79,11 @@ impl InputState {
             winit::keyboard::Key::Named(key) => {
                 match key {
                     winit::keyboard::NamedKey::Escape => {
-                        if pressed {
-                            if self.mouse_captured {
+                        if pressed
+                            && self.mouse_captured {
                                 self.mouse_captured = false;
                                 self.capture_changed = true;
                             }
-                        }
                         true
                     }
                     winit::keyboard::NamedKey::Space => {

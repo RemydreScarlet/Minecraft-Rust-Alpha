@@ -8,7 +8,7 @@ use winit::window::Window;
 use wgpu::{util::DeviceExt, SurfaceConfiguration, Device, Queue, RenderPipeline, BindGroup, Buffer};
 use glam::Mat4;
 use crate::render::chunk_mesh::{ChunkMesh, BlockVertex};
-use crate::world::world::World;
+use crate::world::world_manager::World;
 use crate::camera::Camera;
 
 /// Uniform buffer structure for matrices
@@ -35,7 +35,6 @@ pub struct Renderer {
     uniform_bind_group: BindGroup,
     depth_texture: wgpu::Texture,
     depth_view: wgpu::TextureView,
-    start_time: std::time::Instant,
 }
 
 impl Renderer {
@@ -51,7 +50,7 @@ impl Renderer {
             gles_minor_version: wgpu::Gles3MinorVersion::default(),
         });
         
-        let surface = unsafe { std::mem::transmute(instance.create_surface(window)?) };
+        let surface = unsafe { std::mem::transmute::<wgpu::Surface<'_>, wgpu::Surface<'_>>(instance.create_surface(window)?) };
         
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -221,7 +220,6 @@ impl Renderer {
             uniform_bind_group,
             depth_texture,
             depth_view,
-            start_time: std::time::Instant::now(),
         })
     }
     

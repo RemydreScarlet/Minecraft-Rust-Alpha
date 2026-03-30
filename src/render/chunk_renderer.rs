@@ -15,7 +15,7 @@ pub struct ChunkVertex {
 }
 
 impl ChunkVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<ChunkVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,

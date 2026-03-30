@@ -31,9 +31,9 @@ impl Position {
     /// # Panics
     /// Panics if any coordinate is outside the range 0-1023
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        assert!(x >= 0 && x < 1024, "X coordinate out of range: {}", x);
-        assert!(y >= 0 && y < 1024, "Y coordinate out of range: {}", y);
-        assert!(z >= 0 && z < 1024, "Z coordinate out of range: {}", z);
+        assert!((0..1024).contains(&x), "X coordinate out of range: {}", x);
+        assert!((0..1024).contains(&y), "Y coordinate out of range: {}", y);
+        assert!((0..1024).contains(&z), "Z coordinate out of range: {}", z);
         
         let packed = x | (y << 10) | (z << 20);
         Self { packed }
@@ -147,9 +147,9 @@ pub struct LocalPos {
 
 impl LocalPos {
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        assert!(x >= 0 && x < 16, "Local X coordinate out of range: {}", x);
-        assert!(y >= 0 && y < 128, "Local Y coordinate out of range: {}", y);
-        assert!(z >= 0 && z < 16, "Local Z coordinate out of range: {}", z);
+        assert!((0..16).contains(&x), "Local X coordinate out of range: {}", x);
+        assert!((0..128).contains(&y), "Local Y coordinate out of range: {}", y);
+        assert!((0..16).contains(&z), "Local Z coordinate out of range: {}", z);
         Self { x, y, z }
     }
     

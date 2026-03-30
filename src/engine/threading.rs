@@ -8,7 +8,7 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use crate::world::world::World;
+use crate::world::world_manager::World;
 use crate::math::position::{WorldPos, ChunkPos};
 
 /// Messages sent between game threads
@@ -151,7 +151,6 @@ impl ThreadManager {
         let target_tps = 20;
         let tick_duration = Duration::from_millis(1000 / target_tps);
         let mut last_tick = Instant::now();
-        let mut partial_ticks = 0.0f32;
 
         while is_running.load(Ordering::Relaxed) {
             let now = Instant::now();
@@ -160,7 +159,7 @@ impl ThreadManager {
             // Calculate partial ticks for smooth interpolation
             let elapsed_ms = elapsed.as_millis() as f32;
             let expected_ticks = elapsed_ms / 50.0; // 50ms per tick at 20 TPS
-            partial_ticks = expected_ticks.fract();
+            let partial_ticks = expected_ticks.fract();
 
             // Process incoming messages
             let mut should_tick = false;
@@ -202,8 +201,8 @@ impl ThreadManager {
             }
 
             // Perform world tick if needed
-            if should_tick && elapsed >= tick_duration {
-                if let Ok(mut world_guard) = world.lock() {
+            if should_tick && elapsed >= tick_duration
+                && let Ok(mut world_guard) = world.lock() {
                     world_guard.update();
                     tick_counter.fetch_add(1, Ordering::Relaxed);
                     last_tick = now;
@@ -213,7 +212,6 @@ impl ThreadManager {
                         partial_ticks,
                     });
                 }
-            }
 
             // Small sleep to prevent busy waiting
             if !should_tick && elapsed < tick_duration {

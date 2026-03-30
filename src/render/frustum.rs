@@ -6,21 +6,23 @@ use crate::math::position::WorldPos;
 
 /// Frustum for view frustum culling
 pub struct Frustum {
-    /// Frustum planes
-    planes: [f32; 6],
 }
 
 impl Frustum {
     /// Create a new frustum
     pub fn new() -> Self {
-        Self {
-            planes: [0.0; 6],
-        }
+        Self {}
     }
     
     /// Check if position is in frustum
-    pub fn contains(&self, pos: WorldPos) -> bool {
+    pub fn contains(&self, _pos: WorldPos) -> bool {
         // Simple frustum check - always return true for now
         true
+    }
+}
+
+impl Default for Frustum {
+    fn default() -> Self {
+        Self::new()
     }
 }

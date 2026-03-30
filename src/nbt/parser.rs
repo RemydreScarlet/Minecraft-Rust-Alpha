@@ -24,3 +24,9 @@ impl NbtParser {
         Ok(())
     }
 }
+
+impl Default for NbtParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}

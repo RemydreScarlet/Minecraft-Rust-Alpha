@@ -2,8 +2,6 @@
 //! 
 //! This module implements spatial partitioning for efficient entity queries.
 
-use std::collections::HashMap;
-use crate::entities::entity::Entity;
 
 /// Spatial index for partitioning entities by Y-section
 pub struct SpatialIndex {
@@ -22,7 +20,7 @@ impl SpatialIndex {
     /// Add an entity to the spatial index
     pub fn add_entity(&mut self, entity: &crate::entities::entity::Entity) {
         let section = (entity.y as i32 / 16).clamp(0, 7) as usize;
-        self.sections[section].push(entity.clone());
+        self.sections[section].push(*entity);
     }
     
     /// Get entities in a specific Y-section
@@ -40,5 +38,11 @@ impl SpatialIndex {
             }
         }
         all_entities
+    }
+}
+
+impl Default for SpatialIndex {
+    fn default() -> Self {
+        Self::new()
     }
 }

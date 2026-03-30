@@ -2,7 +2,7 @@
 //! 
 //! This module implements coordinate conversions and utilities.
 
-use crate::math::position::{WorldPos, ChunkPos, LocalPos};
+use crate::math::position::{WorldPos, ChunkPos};
 
 /// Coordinate conversion utilities
 pub struct CoordinateUtils;
@@ -19,9 +19,9 @@ impl CoordinateUtils {
     /// Convert chunk coordinates to world coordinates
     pub fn chunk_to_world(chunk_pos: ChunkPos) -> WorldPos {
         WorldPos::new(
-            (chunk_pos.x << 4) as i32,
+            chunk_pos.x << 4,
             0, // Default Y
-            (chunk_pos.z << 4) as i32
+            chunk_pos.z << 4
         )
     }
 }
