@@ -7,14 +7,8 @@ use std::clone::Clone;
 use winit::window::Window;
 use wgpu::{util::DeviceExt, SurfaceConfiguration, Device, Queue, RenderPipeline, BindGroup, Buffer};
 use glam::Mat4;
-
-/// Vertex structure for 3D rendering
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
+use crate::render::chunk_mesh::{ChunkMesh, BlockVertex};
+use crate::world::world::World;
 
 /// Uniform buffer structure for matrices
 #[repr(C)]
@@ -23,27 +17,6 @@ struct Uniforms {
     proj_matrix: [[f32; 4]; 4],
     view_matrix: [[f32; 4]; 4],
     model_matrix: [[f32; 4]; 4],
-}
-
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
 }
 
 /// Main renderer
@@ -193,7 +166,7 @@ impl Renderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[BlockVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -228,8 +201,8 @@ impl Renderer {
             multiview: None,
         });
 
-        // Create basic cube vertices
-        let (vertex_buffer, index_buffer, num_indices) = create_cube_buffers(&device);
+        // Create initial chunk mesh buffers (will be updated when world is available)
+        let (vertex_buffer, index_buffer, num_indices) = create_empty_chunk_buffers(&device);
 
         Ok(Self {
             device,
@@ -247,6 +220,21 @@ impl Renderer {
             depth_view,
             start_time: std::time::Instant::now(),
         })
+    }
+    
+    /// Update renderer with world data
+    pub fn update_world(&mut self, world: &World) -> Result<()> {
+        // Generate mesh for the first chunk (for now)
+        if let Some(chunk) = world.get_all_chunks().first() {
+            let chunk_mesh = ChunkMesh::generate_chunk_mesh(chunk);
+            let (vertex_buffer, index_buffer, num_indices) = chunk_mesh.create_buffers(&self.device);
+            
+            self.vertex_buffer = vertex_buffer;
+            self.index_buffer = index_buffer;
+            self.num_indices = num_indices;
+        }
+        
+        Ok(())
     }
     
     /// Render a frame
@@ -368,8 +356,8 @@ fn create_projection_matrix(aspect_ratio: f32) -> Mat4 {
 /// Create view matrix (camera)
 fn create_view_matrix() -> Mat4 {
     Mat4::look_at_rh(
-        glam::Vec3::new(3.0, 2.0, 5.0),  // Camera position
-        glam::Vec3::new(0.0, 0.0, 0.0),   // Look at origin
+        glam::Vec3::new(24.0, 32.0, 24.0),  // Camera position (moved back to see chunk)
+        glam::Vec3::new(8.0, 20.0, 8.0),   // Look at chunk center
         glam::Vec3::new(0.0, 1.0, 0.0),   // Up vector
     )
 }
@@ -378,76 +366,23 @@ fn create_view_matrix() -> Mat4 {
 fn create_model_matrix(time: f32) -> Mat4 {
     let rotation_y = Mat4::from_rotation_y(time);
     let rotation_x = Mat4::from_rotation_x(time * 0.7);
-    let translation = Mat4::from_translation(glam::Vec3::new(0.0, 0.0, 0.0));
+    let translation = Mat4::from_translation(glam::Vec3::new(-8.0, -20.0, -8.0)); // Center chunk
     translation * rotation_y * rotation_x
 }
 
-/// Create basic cube vertex and index buffers
-fn create_cube_buffers(device: &Device) -> (Buffer, Buffer, u32) {
-    let vertices = vec![
-        // Front face (red) - Z+面
-        Vertex { position: [-1.0, -1.0,  1.0], color: [1.0, 0.0, 0.0] }, // 0
-        Vertex { position: [ 1.0, -1.0,  1.0], color: [1.0, 0.0, 0.0] }, // 1
-        Vertex { position: [ 1.0,  1.0,  1.0], color: [1.0, 0.0, 0.0] }, // 2
-        Vertex { position: [-1.0,  1.0,  1.0], color: [1.0, 0.0, 0.0] }, // 3
-        
-        // Back face (green) - Z-面
-        Vertex { position: [ 1.0, -1.0, -1.0], color: [0.0, 1.0, 0.0] }, // 4
-        Vertex { position: [-1.0, -1.0, -1.0], color: [0.0, 1.0, 0.0] }, // 5
-        Vertex { position: [-1.0,  1.0, -1.0], color: [0.0, 1.0, 0.0] }, // 6
-        Vertex { position: [ 1.0,  1.0, -1.0], color: [0.0, 1.0, 0.0] }, // 7
-        
-        // Top face (blue) - Y+面
-        Vertex { position: [-1.0,  1.0,  1.0], color: [0.0, 0.0, 1.0] }, // 8
-        Vertex { position: [ 1.0,  1.0,  1.0], color: [0.0, 0.0, 1.0] }, // 9
-        Vertex { position: [ 1.0,  1.0, -1.0], color: [0.0, 0.0, 1.0] }, // 10
-        Vertex { position: [-1.0,  1.0, -1.0], color: [0.0, 0.0, 1.0] }, // 11
-        
-        // Bottom face (yellow) - Y-面
-        Vertex { position: [-1.0, -1.0, -1.0], color: [1.0, 1.0, 0.0] }, // 12
-        Vertex { position: [ 1.0, -1.0, -1.0], color: [1.0, 1.0, 0.0] }, // 13
-        Vertex { position: [ 1.0, -1.0,  1.0], color: [1.0, 1.0, 0.0] }, // 14
-        Vertex { position: [-1.0, -1.0,  1.0], color: [1.0, 1.0, 0.0] }, // 15
-        
-        // Right face (magenta) - X+面
-        Vertex { position: [ 1.0, -1.0,  1.0], color: [1.0, 0.0, 1.0] }, // 16
-        Vertex { position: [ 1.0, -1.0, -1.0], color: [1.0, 0.0, 1.0] }, // 17
-        Vertex { position: [ 1.0,  1.0, -1.0], color: [1.0, 0.0, 1.0] }, // 18
-        Vertex { position: [ 1.0,  1.0,  1.0], color: [1.0, 0.0, 1.0] }, // 19
-        
-        // Left face (cyan) - X-面
-        Vertex { position: [-1.0, -1.0, -1.0], color: [0.0, 1.0, 1.0] }, // 20
-        Vertex { position: [-1.0, -1.0,  1.0], color: [0.0, 1.0, 1.0] }, // 21
-        Vertex { position: [-1.0,  1.0,  1.0], color: [0.0, 1.0, 1.0] }, // 22
-        Vertex { position: [-1.0,  1.0, -1.0], color: [0.0, 1.0, 1.0] }, // 23
-    ];
-
-    let indices = vec![
-        // Front face (Z+) - 時計回りに修正
-        0, 1, 2, 2, 3, 0,
-        // Back face (Z-) - 時計回りに修正
-        4, 5, 6, 6, 7, 4,
-        // Top face (Y+) - 時計回りに修正
-        8, 9, 10, 10, 11, 8,
-        // Bottom face (Y-) - 時計回りに修正
-        12, 13, 14, 14, 15, 12,
-        // Right face (X+) - 時計回りに修正
-        16, 17, 18, 18, 19, 16,
-        // Left face (X-) - 時計回りに修正
-        20, 21, 22, 22, 23, 20,
-    ];
-
+/// Create empty chunk buffers as placeholder
+fn create_empty_chunk_buffers(device: &Device) -> (Buffer, Buffer, u32) {
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(&vertices),
+        label: Some("Empty Vertex Buffer"),
+        contents: bytemuck::cast_slice(&[BlockVertex { position: [0.0; 3], color: [0.0; 3] }]),
         usage: wgpu::BufferUsages::VERTEX,
     });
 
     let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
+        label: Some("Empty Index Buffer"),
+        contents: bytemuck::cast_slice(&[0u32]),
         usage: wgpu::BufferUsages::INDEX,
     });
 
-    (vertex_buffer, index_buffer, indices.len() as u32)
+    (vertex_buffer, index_buffer, 0)
 }

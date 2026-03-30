@@ -5,6 +5,7 @@
 
 use crate::math::position::{WorldPos, ChunkPos};
 use crate::world::chunk::Chunk;
+use crate::world::generator::WorldGenerator;
 use crate::entities::entity::Entity;
 use crate::entities::player::Player;
 use std::collections::HashMap;
@@ -32,12 +33,16 @@ pub struct World {
     /// World flags
     pub snow_covered: bool,
     pub multiplayer: bool,
+    
+    /// Terrain generator
+    generator: WorldGenerator,
 }
 
 impl World {
     /// Create a new world with the given seed
     pub fn new(seed: u64) -> Self {
-        Self {
+        let generator = WorldGenerator::new(seed);
+        let mut world = Self {
             seed,
             time: 0,
             spawn_x: 0,
@@ -49,7 +54,20 @@ impl World {
             players: Vec::new(),
             snow_covered: false,
             multiplayer: false,
-        }
+            generator,
+        };
+        
+        // Generate initial chunk at spawn
+        world.generate_initial_chunks();
+        world
+    }
+    
+    /// Generate initial chunks around spawn
+    fn generate_initial_chunks(&mut self) {
+        // Generate a single chunk at (0,0) for now
+        let chunk_pos = ChunkPos::new(0, 0);
+        let chunk = self.generator.generate_chunk(chunk_pos);
+        self.add_chunk(chunk);
     }
     
     /// Get the block type at the given world coordinates
@@ -95,6 +113,11 @@ impl World {
     /// Remove a chunk from the world
     pub fn remove_chunk(&mut self, pos: ChunkPos) -> Option<Chunk> {
         self.chunks.remove(&pos)
+    }
+    
+    /// Get all chunks for rendering
+    pub fn get_all_chunks(&self) -> Vec<&Chunk> {
+        self.chunks.values().collect()
     }
     
     /// Update world state (called each game tick)

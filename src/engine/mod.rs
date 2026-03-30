@@ -28,7 +28,7 @@ impl Engine {
     }
     
     /// Run the main game loop with WebGPU rendering
-    pub fn run(&mut self, _world: World) -> Result<()> {
+    pub fn run(&mut self, world: World) -> Result<()> {
         let event_loop = EventLoop::new()?;
         
         let window = WindowBuilder::new()
@@ -39,8 +39,11 @@ impl Engine {
         // Initialize renderer
         let mut renderer = pollster::block_on(Renderer::new(&window))?;
         
+        // Update renderer with world data
+        renderer.update_world(&world)?;
+        
         println!("WebGPU initialized successfully");
-        println!("Starting 3D cube rendering...");
+        println!("Starting chunk-based world rendering...");
         
         let _thread_manager = self.thread_manager.take().unwrap();
         
