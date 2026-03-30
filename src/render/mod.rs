@@ -12,6 +12,7 @@ pub mod frustum;
 use anyhow::Result;
 
 /// Main renderer interface
+#[derive(Clone)]
 pub struct Renderer {
     // Renderer state will be implemented here
 }

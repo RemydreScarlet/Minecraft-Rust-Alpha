@@ -4,6 +4,7 @@
 
 use crate::entities::entity::Entity;
 
+#[derive(Clone)]
 pub struct Player {
     pub entity: Entity,
     pub health: i32,

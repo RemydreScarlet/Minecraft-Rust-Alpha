@@ -4,11 +4,15 @@
 //! chunks, entities, and world data. Equivalent to `cn.java` in the original.
 
 use crate::math::position::{WorldPos, ChunkPos};
+use crate::world::chunk::Chunk;
+use crate::entities::entity::Entity;
+use crate::entities::player::Player;
 use std::collections::HashMap;
 
 /// Main world class that manages all game state, chunks, entities, and world data
 /// 
 /// This is equivalent to the `cn` class in the original Java code.
+#[derive(Clone)]
 pub struct World {
     /// World properties
     pub seed: u64,
@@ -106,60 +110,5 @@ impl World {
         for player in &mut self.players {
             player.update();
         }
-    }
-}
-
-// Forward declarations for now
-pub struct Chunk {
-    pub x: i32,
-    pub z: i32,
-    pub blocks: [u8; 32768], // 16x16x128
-}
-
-impl Chunk {
-    pub fn new(x: i32, z: i32) -> Self {
-        Self {
-            x,
-            z,
-            blocks: [0; 32768],
-        }
-    }
-    
-    pub fn get_block(&self, pos: crate::math::position::LocalPos) -> u8 {
-        self.blocks[pos.to_index()]
-    }
-    
-    pub fn set_block(&mut self, pos: crate::math::position::LocalPos, block_id: u8) -> bool {
-        let index = pos.to_index();
-        if self.blocks[index] != block_id {
-            self.blocks[index] = block_id;
-            true
-        } else {
-            false
-        }
-    }
-}
-
-pub struct Entity {
-    pub id: u32,
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-
-impl Entity {
-    pub fn update(&mut self) {
-        // Basic entity update logic
-    }
-}
-
-pub struct Player {
-    pub entity: Entity,
-    pub health: i32,
-}
-
-impl Player {
-    pub fn update(&mut self) {
-        self.entity.update();
     }
 }

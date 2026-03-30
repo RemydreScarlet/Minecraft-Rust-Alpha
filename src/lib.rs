@@ -40,6 +40,6 @@ impl MinecraftAlpha {
     
     /// Run the main game loop
     pub fn run(&mut self) -> Result<()> {
-        self.engine.run(&mut self.world, &mut self.renderer)
+        self.engine.run(self.world.clone(), self.renderer.clone())
     }
 }

@@ -5,6 +5,7 @@
 use crate::math::position::{ChunkPos, LocalPos};
 
 /// Chunk data structure
+#[derive(Clone)]
 pub struct Chunk {
     pub x: i32,
     pub z: i32,
@@ -22,12 +23,12 @@ impl Chunk {
     }
     
     /// Get block at local position
-    pub fn get_block(&self, pos: LocalPos) -> u8 {
+    pub fn get_block(&self, pos: crate::math::position::LocalPos) -> u8 {
         self.blocks[pos.to_index()]
     }
     
     /// Set block at local position
-    pub fn set_block(&mut self, pos: LocalPos, block_id: u8) -> bool {
+    pub fn set_block(&mut self, pos: crate::math::position::LocalPos, block_id: u8) -> bool {
         let index = pos.to_index();
         if self.blocks[index] != block_id {
             self.blocks[index] = block_id;

@@ -3,8 +3,10 @@
 //! This module implements the main renderer equivalent to `e.java`.
 
 use anyhow::Result;
+use std::clone::Clone;
 
 /// Main renderer
+#[derive(Clone)]
 pub struct Renderer {
     // Renderer state will be implemented here
 }
