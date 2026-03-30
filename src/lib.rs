@@ -12,6 +12,8 @@ pub mod blocks;
 pub mod audio;
 pub mod math;
 pub mod nbt;
+pub mod camera;
+pub mod input;
 
 use anyhow::Result;
 

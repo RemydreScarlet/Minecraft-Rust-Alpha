@@ -9,6 +9,7 @@ use wgpu::{util::DeviceExt, SurfaceConfiguration, Device, Queue, RenderPipeline,
 use glam::Mat4;
 use crate::render::chunk_mesh::{ChunkMesh, BlockVertex};
 use crate::world::world::World;
+use crate::camera::Camera;
 
 /// Uniform buffer structure for matrices
 #[repr(C)]
@@ -111,9 +112,11 @@ impl Renderer {
         });
 
         // Create uniform buffer for projection, view, and model matrices
-        let projection_matrix = create_projection_matrix(size.width as f32 / size.height as f32);
-        let view_matrix = create_view_matrix();
-        let model_matrix = create_model_matrix(0.0); // Initial static model
+        // Initial matrices will be set by camera on first frame
+        let initial_camera = Camera::new(glam::Vec3::new(8.0, 40.0, 8.0));
+        let projection_matrix = initial_camera.projection_matrix(size.width as f32 / size.height as f32);
+        let view_matrix = initial_camera.view_matrix();
+        let model_matrix = Mat4::IDENTITY;
         
         let uniforms = Uniforms {
             proj_matrix: projection_matrix.to_cols_array_2d(),
@@ -237,20 +240,11 @@ impl Renderer {
         Ok(())
     }
     
-    /// Render a frame
-    pub fn render_frame(&mut self) -> Result<()> {
-        let output = self.surface.get_current_texture()
-            .map_err(|e| anyhow::anyhow!("Failed to get current texture: {:?}", e))?;
-        
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        
-        // Update model matrix with rotation animation
-        let elapsed = self.start_time.elapsed().as_secs_f32();
-        let model_matrix = create_model_matrix(elapsed);
-        
-        // Update uniform buffer with animated model matrix
-        let projection_matrix = create_projection_matrix(self.size.width as f32 / self.size.height as f32);
-        let view_matrix = create_view_matrix();
+    /// Update renderer with camera view matrix
+    pub fn update_camera(&mut self, camera: &Camera) {
+        let projection_matrix = camera.projection_matrix(self.size.width as f32 / self.size.height as f32);
+        let view_matrix = camera.view_matrix();
+        let model_matrix = Mat4::IDENTITY; // No world transformation
         
         let uniforms = Uniforms {
             proj_matrix: projection_matrix.to_cols_array_2d(),
@@ -259,6 +253,16 @@ impl Renderer {
         };
         
         self.queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+    }
+    
+    /// Render a frame
+    pub fn render_frame(&mut self) -> Result<()> {
+        let output = self.surface.get_current_texture()
+            .map_err(|e| anyhow::anyhow!("Failed to get current texture: {:?}", e))?;
+        
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
+        // Camera matrices are already updated by update_camera() call
         
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
@@ -329,45 +333,12 @@ impl Renderer {
             });
             self.depth_view = self.depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-            // Update projection matrix
-            let projection_matrix = create_projection_matrix(new_size.width as f32 / new_size.height as f32);
-            let view_matrix = create_view_matrix();
-            let model_matrix = create_model_matrix(0.0); // Reset to static for resize
-            
-            let uniforms = Uniforms {
-                proj_matrix: projection_matrix.to_cols_array_2d(),
-                view_matrix: view_matrix.to_cols_array_2d(),
-                model_matrix: model_matrix.to_cols_array_2d(),
-            };
-            
-            self.queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+            // Note: Camera matrices will be updated on next frame by update_camera()
             
             // Reconfigure surface
             self.surface.configure(&self.device, &self.config);
         }
     }
-}
-
-/// Create projection matrix
-fn create_projection_matrix(aspect_ratio: f32) -> Mat4 {
-    Mat4::perspective_rh_gl(45.0f32.to_radians(), aspect_ratio, 0.1, 100.0)
-}
-
-/// Create view matrix (camera)
-fn create_view_matrix() -> Mat4 {
-    Mat4::look_at_rh(
-        glam::Vec3::new(24.0, 32.0, 24.0),  // Camera position (moved back to see chunk)
-        glam::Vec3::new(8.0, 20.0, 8.0),   // Look at chunk center
-        glam::Vec3::new(0.0, 1.0, 0.0),   // Up vector
-    )
-}
-
-/// Create model matrix (object transformation)
-fn create_model_matrix(time: f32) -> Mat4 {
-    let rotation_y = Mat4::from_rotation_y(time);
-    let rotation_x = Mat4::from_rotation_x(time * 0.7);
-    let translation = Mat4::from_translation(glam::Vec3::new(-8.0, -20.0, -8.0)); // Center chunk
-    translation * rotation_y * rotation_x
 }
 
 /// Create empty chunk buffers as placeholder
