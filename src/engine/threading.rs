@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use crate::world::world_manager::World;
 use crate::math::position::{WorldPos, ChunkPos};
+use crate::render::chunk_mesh::BlockVertex;
 
 /// Messages sent between game threads
 #[derive(Debug, Clone)]
@@ -24,6 +25,8 @@ pub enum GameMessage {
     AddChunk { chunk_pos: ChunkPos },
     /// Remove chunk from world
     RemoveChunk { chunk_pos: ChunkPos },
+    /// Generate chunk mesh for rendering
+    GenerateChunkMesh { chunk_pos: (i32, i32) },
     /// Shutdown all threads
     Shutdown,
 }
@@ -37,6 +40,8 @@ pub enum WorldResponse {
     WorldStateSnapshot { world_data: WorldSnapshot },
     /// Block operation result
     BlockOperationResult { success: bool },
+    /// Chunk mesh generation result
+    ChunkMeshGenerated { chunk_pos: (i32, i32), vertices: Vec<BlockVertex>, indices: Vec<u32> },
 }
 
 /// Thread-safe snapshot of world state for rendering
@@ -105,20 +110,24 @@ impl ThreadSafeWorld {
 /// Thread manager for coordinating game threads
 pub struct ThreadManager {
     world_thread_handle: Option<JoinHandle<()>>,
+    mesh_thread_handles: Vec<JoinHandle<()>>,
     world_sender: Option<Sender<GameMessage>>,
     world_receiver: Option<Receiver<WorldResponse>>,
+    mesh_sender: Option<Sender<GameMessage>>,
+    mesh_receiver: Option<Receiver<WorldResponse>>,
     thread_safe_world: ThreadSafeWorld,
 }
 
 impl ThreadManager {
     pub fn new(world: World) -> Self {
-        let thread_safe_world = ThreadSafeWorld::new(world);
-        
         Self {
             world_thread_handle: None,
+            mesh_thread_handles: Vec::new(),
             world_sender: None,
             world_receiver: None,
-            thread_safe_world,
+            mesh_sender: None,
+            mesh_receiver: None,
+            thread_safe_world: ThreadSafeWorld::new(world),
         }
     }
 

@@ -7,7 +7,7 @@ use wgpu::{util::DeviceExt, Device, Buffer};
 
 /// Vertex structure for block rendering
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct BlockVertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
@@ -143,8 +143,10 @@ impl ChunkMesh {
     }
 
     /// Generate mesh for a chunk with face culling
-    pub fn generate_chunk_mesh(chunk: &crate::world::chunk::Chunk) -> Self {
+    pub fn generate_chunk_mesh(chunk: &crate::world::chunk::Chunk, world: &crate::world::world_manager::World) -> Self {
         let mut mesh = Self::new();
+        let mut solid_blocks = 0;
+        let mut faces_rendered = 0;
 
         for x in 0..16 {
             for y in 0..128 {
@@ -155,35 +157,46 @@ impl ChunkMesh {
                     if block_type == 0 {
                         continue; // Skip air blocks
                     }
+                    
+                    solid_blocks += 1;
 
                     // Check each face for visibility
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::PositiveX) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::PositiveX) {
                         mesh.add_face(x, y, z, FaceDirection::PositiveX, block_type);
+                        faces_rendered += 1;
                     }
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::NegativeX) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::NegativeX) {
                         mesh.add_face(x, y, z, FaceDirection::NegativeX, block_type);
+                        faces_rendered += 1;
                     }
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::PositiveY) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::PositiveY) {
                         mesh.add_face(x, y, z, FaceDirection::PositiveY, block_type);
+                        faces_rendered += 1;
                     }
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::NegativeY) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::NegativeY) {
                         mesh.add_face(x, y, z, FaceDirection::NegativeY, block_type);
+                        faces_rendered += 1;
                     }
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::PositiveZ) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::PositiveZ) {
                         mesh.add_face(x, y, z, FaceDirection::PositiveZ, block_type);
+                        faces_rendered += 1;
                     }
-                    if Self::should_render_face(chunk, x, y, z, FaceDirection::NegativeZ) {
+                    if Self::should_render_face(chunk, world, x, y, z, FaceDirection::NegativeZ) {
                         mesh.add_face(x, y, z, FaceDirection::NegativeZ, block_type);
+                        faces_rendered += 1;
                     }
                 }
             }
         }
+        
+        println!("DEBUG: Chunk ({}, {}) - Solid blocks: {}, Faces rendered: {}", 
+                 chunk.x, chunk.z, solid_blocks, faces_rendered);
 
         mesh
     }
 
     /// Check if a face should be rendered (face culling)
-    fn should_render_face(chunk: &crate::world::chunk::Chunk, x: i32, y: i32, z: i32, direction: FaceDirection) -> bool {
+    fn should_render_face(chunk: &crate::world::chunk::Chunk, world: &crate::world::world_manager::World, x: i32, y: i32, z: i32, direction: FaceDirection) -> bool {
         let (check_x, check_y, check_z) = match direction {
             FaceDirection::PositiveX => (x + 1, y, z),
             FaceDirection::NegativeX => (x - 1, y, z),
@@ -193,14 +206,45 @@ impl ChunkMesh {
             FaceDirection::NegativeZ => (x, y, z - 1),
         };
 
-        // Check if neighbor is outside chunk bounds (always render chunk boundaries)
+        // Check if neighbor is outside chunk bounds
         if !(0..16).contains(&check_x) || !(0..128).contains(&check_y) || !(0..16).contains(&check_z) {
-            return true;
-        }
+            // Y coordinate is out of bounds, always render (world top/bottom)
+            if !(0..128).contains(&check_y) {
+                return true;
+            }
+            
+            // Calculate neighboring chunk position
+            let chunk_pos = crate::math::position::ChunkPos::new(chunk.x, chunk.z);
+            let (neighbor_chunk_x, neighbor_chunk_z) = if check_x < 0 {
+                (chunk_pos.x - 1, chunk_pos.z)
+            } else if check_x >= 16 {
+                (chunk_pos.x + 1, chunk_pos.z)
+            } else if check_z < 0 {
+                (chunk_pos.x, chunk_pos.z - 1)
+            } else if check_z >= 16 {
+                (chunk_pos.x, chunk_pos.z + 1)
+            } else {
+                (chunk_pos.x, chunk_pos.z) // Same chunk (shouldn't happen here)
+            };
 
-        // Check if neighbor block is air
-        let neighbor_pos = crate::math::position::LocalPos::new(check_x, check_y, check_z);
-        chunk.get_block(neighbor_pos) == 0
+            let neighbor_chunk_pos = crate::math::position::ChunkPos::new(neighbor_chunk_x, neighbor_chunk_z);
+            
+            // Calculate local position in neighboring chunk
+            let neighbor_local_x = if check_x < 0 { 15 } else if check_x >= 16 { 0 } else { check_x };
+            let neighbor_local_z = if check_z < 0 { 15 } else if check_z >= 16 { 0 } else { check_z };
+            let neighbor_local_pos = crate::math::position::LocalPos::new(neighbor_local_x, check_y, neighbor_local_z);
+
+            // Check if neighboring chunk exists and get block
+            if let Some(neighbor_chunk) = world.get_chunk(neighbor_chunk_pos) {
+                neighbor_chunk.get_block(neighbor_local_pos) == 0 // Render if neighbor is air
+            } else {
+                true // No neighboring chunk, render the face
+            }
+        } else {
+            // Check if neighbor block is air within the same chunk
+            let neighbor_pos = crate::math::position::LocalPos::new(check_x, check_y, check_z);
+            chunk.get_block(neighbor_pos) == 0
+        }
     }
 
     /// Get color for block type
@@ -213,8 +257,28 @@ impl ChunkMesh {
         }
     }
 
+    /// Get vertices reference
+    pub fn get_vertices(&self) -> &Vec<BlockVertex> {
+        &self.vertices
+    }
+    
+    /// Get indices reference  
+    pub fn get_indices(&self) -> &Vec<u32> {
+        &self.indices
+    }
+    
+    /// Get vertices (mutable)
+    pub fn get_vertices_mut(&mut self) -> &mut Vec<BlockVertex> {
+        &mut self.vertices
+    }
+    
+    /// Get indices (mutable)
+    pub fn get_indices_mut(&mut self) -> &mut Vec<u32> {
+        &mut self.indices
+    }
+
     /// Create vertex and index buffers for the mesh
-    pub fn create_buffers(self, device: &Device) -> (Buffer, Buffer, u32) {
+    pub fn create_buffers(&self, device: &Device) -> (Buffer, Buffer, u32) {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Chunk Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),

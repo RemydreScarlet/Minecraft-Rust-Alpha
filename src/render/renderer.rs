@@ -4,12 +4,17 @@
 
 use anyhow::Result;
 use std::clone::Clone;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use rayon::prelude::*;
 use winit::window::Window;
 use wgpu::{util::DeviceExt, SurfaceConfiguration, Device, Queue, RenderPipeline, BindGroup, Buffer};
 use glam::Mat4;
 use crate::render::chunk_mesh::{ChunkMesh, BlockVertex};
 use crate::world::world_manager::World;
 use crate::camera::Camera;
+use crate::math::position::ChunkPos;
+use std::collections::HashMap;
 
 /// Uniform buffer structure for matrices
 #[repr(C)]
@@ -35,6 +40,17 @@ pub struct Renderer {
     uniform_bind_group: BindGroup,
     depth_texture: wgpu::Texture,
     depth_view: wgpu::TextureView,
+    
+    // Performance optimization: cache chunk meshes
+    cached_chunk_meshes: Arc<Mutex<HashMap<(i32, i32), (Vec<BlockVertex>, Vec<u32>)>>>,
+    last_center_chunk: Option<ChunkPos>,
+    
+    // GPU buffer optimization: reuse buffers when possible
+    vertex_buffer_capacity: usize,
+    index_buffer_capacity: usize,
+    
+    // Thread pool for parallel mesh generation
+    mesh_generation_threads: Vec<thread::JoinHandle<()>>,
 }
 
 impl Renderer {
@@ -78,10 +94,10 @@ impl Renderer {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: surface_caps.present_modes[0],
+            present_mode: wgpu::PresentMode::Immediate,  // Disable VSync for unlimited FPS
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
-            desired_maximum_frame_latency: 2,
+            desired_maximum_frame_latency: 1,  // Reduce latency for higher FPS
         };
         
         surface.configure(&device, &config);
@@ -220,22 +236,155 @@ impl Renderer {
             uniform_bind_group,
             depth_texture,
             depth_view,
+            cached_chunk_meshes: Arc::new(Mutex::new(HashMap::new())),
+            last_center_chunk: None,
+            vertex_buffer_capacity: 0,
+            index_buffer_capacity: 0,
+            mesh_generation_threads: Vec::new(),
         })
     }
     
     /// Update renderer with world data
     pub fn update_world(&mut self, world: &World) -> Result<()> {
-        // Generate mesh for the first chunk (for now)
-        if let Some(chunk) = world.get_all_chunks().first() {
-            let chunk_mesh = ChunkMesh::generate_chunk_mesh(chunk);
-            let (vertex_buffer, index_buffer, num_indices) = chunk_mesh.create_buffers(&self.device);
+        // Get player position for chunk loading
+        let center_chunk = if let Some(player) = world.get_player() {
+            player.get_chunk_pos()
+        } else {
+            // Fallback to spawn position if no player
+            ChunkPos::new(world.spawn_x >> 4, world.spawn_z >> 4)
+        };
+        
+        // Only regenerate if center chunk changed significantly
+        let should_regenerate = match self.last_center_chunk {
+            None => true,
+            Some(last_center) => {
+                let dx = (center_chunk.x - last_center.x).abs();
+                let dz = (center_chunk.z - last_center.z).abs();
+                dx > 0 || dz > 0  // Regenerate if player moved to different chunk
+            }
+        };
+        
+        // Debug: Check if we're regenerating too frequently
+        if should_regenerate {
+            println!("DEBUG: Regenerating meshes for center chunk: {:?}", center_chunk);
+        }
+        
+        if should_regenerate {
+            // Get chunks near player for rendering
+            let nearby_chunks = world.get_chunks_near(center_chunk);
             
-            self.vertex_buffer = vertex_buffer;
-            self.index_buffer = index_buffer;
-            self.num_indices = num_indices;
+            if !nearby_chunks.is_empty() {
+                // Generate combined mesh for all nearby chunks
+                let mut all_vertices = Vec::new();
+                let mut all_indices = Vec::new();
+                let mut index_offset = 0u32;
+                
+                // Generate all chunk meshes in parallel using Rayon
+                let chunk_mesh_results: Vec<_> = nearby_chunks.par_iter()
+                    .map(|chunk| {
+                        let chunk_key = (chunk.x, chunk.z);
+                        
+                        // Check cache first
+                        let cache = self.cached_chunk_meshes.lock().unwrap();
+                        if let Some(cached_mesh) = cache.get(&chunk_key) {
+                            println!("DEBUG: Cache hit for chunk: {:?}", chunk_key);
+                            (chunk_key, cached_mesh.clone(), true)
+                        } else {
+                            drop(cache);
+                            println!("DEBUG: Cache miss, generating mesh for chunk: {:?}", chunk_key);
+                            // Generate mesh
+                            let chunk_mesh = ChunkMesh::generate_chunk_mesh(chunk, world);
+                            let vertices = chunk_mesh.get_vertices().clone();
+                            let indices = chunk_mesh.get_indices().clone();
+                            
+                            // Cache immediately
+                            let mut cache = self.cached_chunk_meshes.lock().unwrap();
+                            cache.insert(chunk_key, (vertices.clone(), indices.clone()));
+                            (chunk_key, (vertices, indices), false)
+                        }
+                    })
+                    .collect();
+                
+                // Process results
+                for (chunk_key, (vertices, indices), _was_cached) in chunk_mesh_results {
+                    // Find the corresponding chunk for world offset
+                    let chunk = nearby_chunks.iter()
+                        .find(|c| (c.x, c.z) == chunk_key)
+                        .unwrap();
+                    
+                    // Transform vertices to world space
+                    let world_offset_x = chunk.x as f32 * 16.0;
+                    let world_offset_z = chunk.z as f32 * 16.0;
+                    
+                    let mut transformed_vertices = vertices;
+                    for vertex in &mut transformed_vertices {
+                        vertex.position[0] += world_offset_x;
+                        vertex.position[2] += world_offset_z;
+                    }
+                    
+                    // Add vertices and indices
+                    let vertex_count = transformed_vertices.len() as u32;
+                    all_vertices.extend(transformed_vertices);
+                    
+                    let mut transformed_indices = indices;
+                    for index in &mut transformed_indices {
+                        *index += index_offset;
+                    }
+                    all_indices.extend(transformed_indices);
+                    
+                    index_offset += vertex_count;
+                }
+                
+                // Create buffers for combined mesh with capacity optimization
+                if !all_vertices.is_empty() {
+                    // Only recreate buffers if we need more capacity
+                    let need_new_vertex_buffer = all_vertices.len() > self.vertex_buffer_capacity;
+                    let need_new_index_buffer = all_indices.len() > self.index_buffer_capacity;
+                    
+                    if need_new_vertex_buffer {
+                        self.vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Multi-Chunk Vertex Buffer"),
+                            contents: bytemuck::cast_slice(&all_vertices),
+                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        });
+                        self.vertex_buffer_capacity = all_vertices.len();
+                    } else {
+                        // Update existing buffer
+                        self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&all_vertices));
+                    }
+                    
+                    if need_new_index_buffer {
+                        self.index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Multi-Chunk Index Buffer"),
+                            contents: bytemuck::cast_slice(&all_indices),
+                            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                        });
+                        self.index_buffer_capacity = all_indices.len();
+                    } else {
+                        // Update existing buffer
+                        self.queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&all_indices));
+                    }
+                    
+                    self.num_indices = all_indices.len() as u32;
+                }
+            }
+            
+            self.last_center_chunk = Some(center_chunk);
         }
         
         Ok(())
+    }
+    
+    /// Clean up cached meshes for chunks that are no longer nearby
+    fn cleanup_cache(&mut self, nearby_chunks: &[&crate::world::chunk::Chunk]) {
+        let nearby_keys: std::collections::HashSet<_> = nearby_chunks.iter()
+            .map(|chunk| (chunk.x, chunk.z))
+            .collect();
+        
+        let mut cache = self.cached_chunk_meshes.lock().unwrap();
+        cache.retain(|&key, _| {
+            nearby_keys.contains(&key)
+        });
     }
     
     /// Update renderer with camera view matrix

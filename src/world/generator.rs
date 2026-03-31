@@ -175,8 +175,10 @@ impl WorldGenerator {
         // Generate 8 caves per chunk
         for cave_id in 0..8 {
             let seed = self.world_seed.wrapping_add(cave_id as u64)
-                .wrapping_mul(chunk_x as u64 * 341873128712)
-                .wrapping_add(chunk_z as u64 * 132897987541);
+                .wrapping_mul(chunk_x as u64)
+                .wrapping_mul(341873128712)
+                .wrapping_add(chunk_z as u64)
+                .wrapping_mul(132897987541);
             
             // Cave starting position
             let start_x = base_x + ((seed >> 32) % 16) as i32;
@@ -249,8 +251,10 @@ impl WorldGenerator {
                 let seed = self.world_seed
                     .wrapping_add(ore_id as u64 * 1000)
                     .wrapping_add(attempt as u64)
-                    .wrapping_mul(chunk_x as u64 * 341873128712)
-                    .wrapping_add(chunk_z as u64 * 132897987541);
+                    .wrapping_mul(chunk_x as u64)
+                    .wrapping_mul(341873128712)
+                    .wrapping_add(chunk_z as u64)
+                    .wrapping_mul(132897987541);
                 
                 let start_x = base_x + ((seed >> 16) % 16) as i32;
                 let start_y = ((seed >> 8) % max_y) as i32;

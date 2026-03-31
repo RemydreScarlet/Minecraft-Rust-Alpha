@@ -120,6 +120,14 @@ impl Engine {
                         }
                     }
                     
+                    // Update world state (including chunk loading)
+                    world.update();
+                    
+                    // Update renderer with world data (only when needed)
+                    if let Err(e) = renderer.update_world(&world) {
+                        eprintln!("Failed to update world renderer: {:?}", e);
+                    }
+                    
                     // Update camera based on input
                     camera.process_keyboard(&input, delta_time);
                     camera.process_mouse(input.mouse_delta_x, input.mouse_delta_y);

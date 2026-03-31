@@ -26,6 +26,14 @@ pub struct World {
     /// Chunk management
     chunks: HashMap<ChunkPos, Chunk>,
     
+    /// Chunk loading configuration
+    render_distance: i32,  // Chunk render distance
+    max_loaded_chunks: usize,  // Maximum chunks to keep in memory
+    
+    /// Terrain generation system
+    chunk_generation_queue: Vec<ChunkPos>,  // Chunks waiting to be generated
+    chunks_per_tick: usize,  // How many chunks to generate per tick
+    
     /// Entity management
     entities: Vec<Entity>,
     players: Vec<Player>,
@@ -55,19 +63,33 @@ impl World {
             snow_covered: false,
             multiplayer: false,
             generator,
+            render_distance: 4,  // 4 chunks render distance (good balance)
+            max_loaded_chunks: 81,   // Maximum 81 chunks in memory (9x9 area)
+            chunk_generation_queue: Vec::new(),
+            chunks_per_tick: 2,  // Generate 2 chunks per tick for smooth performance
         };
         
-        // Generate initial chunk at spawn
+        // Generate initial chunks around spawn
         world.generate_initial_chunks();
         world
     }
     
     /// Generate initial chunks around spawn
     fn generate_initial_chunks(&mut self) {
-        // Generate a single chunk at (0,0) for now
-        let chunk_pos = ChunkPos::new(0, 0);
-        let chunk = self.generator.generate_chunk(chunk_pos);
-        self.add_chunk(chunk);
+        let center_chunk = ChunkPos::new(self.spawn_x >> 4, self.spawn_z >> 4);
+        
+        // Generate only the center chunk and immediate neighbors first (9 chunks total)
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                let chunk_pos = ChunkPos::new(center_chunk.x + dx, center_chunk.z + dz);
+                if !self.chunks.contains_key(&chunk_pos) {
+                    let chunk = self.generator.generate_chunk(chunk_pos);
+                    self.add_chunk(chunk);
+                }
+            }
+        }
+        
+        println!("DEBUG: Generated initial 9 chunks around spawn");
     }
     
     /// Get the block type at the given world coordinates
@@ -124,6 +146,9 @@ impl World {
     pub fn update(&mut self) {
         self.time += 1;
         
+        // Process chunk generation queue (tick-based terrain generation)
+        self.process_chunk_generation_queue();
+        
         // Update entities
         for entity in &mut self.entities {
             entity.update();
@@ -132,6 +157,120 @@ impl World {
         // Update players
         for player in &mut self.players {
             player.update();
+        }
+        
+        // Update chunk loading based on player position
+        self.update_chunk_loading();
+    }
+    
+    /// Process chunk generation queue (tick-based terrain generation)
+    fn process_chunk_generation_queue(&mut self) {
+        let mut generated_count = 0;
+        
+        // Process up to chunks_per_tick chunks from the queue
+        while generated_count < self.chunks_per_tick && !self.chunk_generation_queue.is_empty() {
+            if let Some(chunk_pos) = self.chunk_generation_queue.pop() {
+                if !self.chunks.contains_key(&chunk_pos) {
+                    let chunk = self.generator.generate_chunk(chunk_pos);
+                    self.add_chunk(chunk);
+                    generated_count += 1;
+                }
+            }
+        }
+        
+        if generated_count > 0 {
+            println!("DEBUG: Generated {} chunks this tick, {} remaining in queue", 
+                     generated_count, self.chunk_generation_queue.len());
+        }
+    }
+    
+    /// Update chunk loading based on player positions
+    fn update_chunk_loading(&mut self) {
+        if let Some(player) = self.get_player() {
+            let player_chunk = ChunkPos::new(
+                (player.entity.x as i32) >> 4, 
+                (player.entity.z as i32) >> 4
+            );
+            self.load_chunks_around_player(player_chunk);
+            self.unload_distant_chunks(player_chunk);
+        }
+    }
+    
+    /// Load chunks around the player position
+    fn load_chunks_around_player(&mut self, center_chunk: ChunkPos) {
+        for dx in -self.render_distance..=self.render_distance {
+            for dz in -self.render_distance..=self.render_distance {
+                let chunk_pos = ChunkPos::new(center_chunk.x + dx, center_chunk.z + dz);
+                
+                // Check if chunk is within render distance (circular distance)
+                let distance_sq = dx * dx + dz * dz;
+                if distance_sq <= self.render_distance * self.render_distance {
+                    if !self.chunks.contains_key(&chunk_pos) && 
+                       !self.chunk_generation_queue.contains(&chunk_pos) {
+                        // Add to generation queue instead of generating immediately
+                        self.chunk_generation_queue.push(chunk_pos);
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Unload chunks that are too far from the player
+    fn unload_distant_chunks(&mut self, center_chunk: ChunkPos) {
+        let mut chunks_to_remove = Vec::new();
+        
+        for (&chunk_pos, _) in &self.chunks {
+            let dx = chunk_pos.x - center_chunk.x;
+            let dz = chunk_pos.z - center_chunk.z;
+            let distance_sq = dx * dx + dz * dz;
+            
+            // Unload if outside render distance or if we have too many chunks
+            let max_distance = self.render_distance + 2;  // Keep some buffer
+            if distance_sq > max_distance * max_distance || 
+               self.chunks.len() > self.max_loaded_chunks {
+                chunks_to_remove.push(chunk_pos);
+            }
+        }
+        
+        // Remove distant chunks
+        for chunk_pos in chunks_to_remove {
+            self.chunks.remove(&chunk_pos);
+        }
+    }
+    
+    /// Get chunks within render distance of a position
+    pub fn get_chunks_near(&self, center_chunk: ChunkPos) -> Vec<&Chunk> {
+        let mut nearby_chunks = Vec::new();
+        
+        for dx in -self.render_distance..=self.render_distance {
+            for dz in -self.render_distance..=self.render_distance {
+                let chunk_pos = ChunkPos::new(center_chunk.x + dx, center_chunk.z + dz);
+                let distance_sq = dx * dx + dz * dz;
+                
+                if distance_sq <= self.render_distance * self.render_distance {
+                    if let Some(chunk) = self.chunks.get(&chunk_pos) {
+                        nearby_chunks.push(chunk);
+                    }
+                }
+            }
+        }
+        
+        nearby_chunks
+    }
+    
+    /// Check if a chunk is loaded
+    pub fn is_chunk_loaded(&self, pos: ChunkPos) -> bool {
+        self.chunks.contains_key(&pos)
+    }
+    
+    /// Force load a specific chunk
+    pub fn load_chunk(&mut self, pos: ChunkPos) -> bool {
+        if !self.chunks.contains_key(&pos) {
+            let chunk = self.generator.generate_chunk(pos);
+            self.add_chunk(chunk);
+            true
+        } else {
+            false
         }
     }
     
