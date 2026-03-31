@@ -1,53 +1,53 @@
-# Minecraft Alpha 1.1.2_01 - World System Documentation
+# Minecraft Alpha 1.1.2_01 - ワールドシステムドキュメント
 
-## 1. World Architecture (cn.java)
+## 1. ワールドアーキテクチャ (cn.java)
 
-### Class Overview
-`cn` - The main world class that manages all game state, chunks, entities, and world data.
+### クラス概要
+`cn` - すべてのゲーム状態、チャンク、エンティティ、ワールドデータを管理するメインワールドクラス。
 
-### Core Data Structures
+### コアデータ構造
 
-#### World Properties
+#### ワールドプロパティ
 ```java
 public class cn implements nm {
-    // Chunk management
-    private List z;        // Chunk provider
-    public List a;         // Loaded chunks
-    private List A;        // Unloading chunks
-    private TreeSet B;      // Chunk unload queue
-    private Set C;         // Chunk loading set
+    // チャンク管理
+    private List z;        // チャンクプロバイダー
+    public List a;         // 読み込まれたチャンク
+    private List A;        // アンロード中のチャンク
+    private TreeSet B;      // チャンクアンロードキュー
+    private Set C;         // チャンク読み込みセット
     
-    // Entity management
-    public List b;         // All entities in world
-    public List k;         // Player entities
+    // エンティティ管理
+    public List b;         // ワールド内のすべてのエンティティ
+    public List k;         // プレイヤーエンティティ
     
-    // World properties
-    public long c;         // World time
-    public boolean d;       // Snow covered flag
-    public int e;          // Dimension (0=overworld)
-    protected int f, g;    // World seeds
-    public boolean h;       // Multiplayer flag
-    public Random n;       // Random number generator
+    // ワールドプロパティ
+    public long c;         // ワールド時間
+    public boolean d;       // 雪が覆われているフラグ
+    public int e;          // ディメンション (0=オーバーワールド)
+    protected int f, g;    // ワールドシード
+    public boolean h;       // マルチプレイヤーフラグ
+    public Random n;       // 乱数生成器
     
-    // Spawn and position
-    public int o, p, q;   // Spawn coordinates (X,Y,Z)
-    public boolean r;       // New world flag
-    public File t;         // World save directory
-    public long u;         // World seed
-    public long v;         // Size on disk
-    public final String w;  // World name
-    public boolean x;       // Generating flag
-    public boolean y;       // Debug flag
+    // スポーンと位置
+    public int o, p, q;   // スポーン座標 (X,Y,Z)
+    public boolean r;       // 新しいワールドフラグ
+    public File t;         // ワールドセーブディレクトリ
+    public long u;         // ワールドシード
+    public long v;         // ディスク上のサイズ
+    public final String w;  // ワールド名
+    public boolean x;       // 生成中フラグ
+    public boolean y;       // デバッグフラグ
 }
 ```
 
-### World Initialization
+### ワールド初期化
 
-#### Constructor Flow
+#### コンストラクタフロー
 ```java
 public cn(File var1, String var2, long var3) {
-    // Initialize data structures
-    this.z = new ArrayList();     // Chunk provider
+    // データ構造を初期化
+    this.z = new ArrayList();     // チャンクプロバイダー
     this.a = new ArrayList();     // Loaded chunks
     this.b = new ArrayList();     // Entities
     

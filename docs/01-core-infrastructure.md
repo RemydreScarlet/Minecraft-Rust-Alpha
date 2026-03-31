@@ -1,125 +1,125 @@
-# Minecraft Alpha 1.1.2_01 - Core Infrastructure Documentation
+# Minecraft Alpha 1.1.2_01 - コアインフラストラクチャドキュメント
 
-## 1. Game Loop Architecture (Minecraft.java)
+## 1. ゲームループアーキテクチャ (Minecraft.java)
 
-### Class Overview
-`net.minecraft.client.Minecraft` - The main game class that orchestrates all game systems.
+### クラス概要
+`net.minecraft.client.Minecraft` - すべてのゲームシステムを統合するメインゲームクラス。
 
-### Key Components
+### 主要コンポーネント
 
-#### Game Loop Structure
+#### ゲームループ構造
 ```java
-// Main game loop (lines 359-475)
+// メインゲームループ（行359-475）
 public void run() {
-    this.F = true; // Game running flag
+    this.F = true; // ゲーム実行フラグ
     
-    // Initialization
-    this.a(); // Initialize display and OpenGL
+    // 初期化
+    this.a(); // ディスプレイとOpenGLを初期化
     
-    // Main loop
+    // メインループ
     while(this.F && (this.z == null || this.z.isActive())) {
-        cf.a(); // Timer update
-        aj.a(); // System updates
+        cf.a(); // タイマー更新
+        aj.a(); // システム更新
         
-        // Input handling
+        // 入力処理
         if(this.k == null && Display.isCloseRequested()) {
-            this.d(); // Shutdown
+            this.d(); // シャットダウン
         }
         
-        // Game tick processing
+        // ゲームティック処理
         for(int var17 = 0; var17 < this.M.b; ++var17) {
-            this.i(); // Process game tick
+            this.i(); // ゲームティックを処理
         }
         
-        // Rendering
+        // レンダリング
         this.c("Pre render");
-        this.A.a(this.g, this.M.c); // Sound system update
-        // ... rendering pipeline
+        this.A.a(this.g, this.M.c); // サウンドシステム更新
+        // ... レンダリングパイプライン
         Display.update();
     }
 }
 ```
 
-#### Timing System
-- **Timer Class**: `ir` - Manages game tick timing (20 ticks per second)
-- **Partial Ticks**: `this.M.c` - Float value for smooth interpolation between ticks
-- **FPS Counter**: Tracks and displays frames per second
+#### タイミングシステム
+- **タイマークラス**: `ir` - ゲームティックタイミングを管理（1秒あたり20ティック）
+- **部分ティック**: `this.M.c` - ティック間の滑らかな補間用浮動小数点値
+- **FPSカウンター**: 1秒あたりのフレーム数を追跡・表示
 
-#### Display Management
-- **Fullscreen Toggle**: Method `h()` handles fullscreen/windowed switching
-- **Resolution Management**: Dynamic resolution changes with viewport updates
-- **Canvas Integration**: Supports both applet and standalone modes
+#### ディスプレイ管理
+- **フルスクリーントグル**: メソッド`h()`がフルスクリーン/ウィンドウ切り替えを処理
+- **解像度管理**: ビューポート更新による動的解像度変更
+- **Canvas統合**: アプレットとスタンドアロンモードの両方をサポート
 
-### State Management
-- **Game States**: Controlled by `bh` (Screen) instances
-- **World Loading**: Method `a(cn var1)` handles world transitions
-- **Pause/Focus**: Manages game pause when window loses focus
+### 状態管理
+- **ゲーム状態**: `bh`（スクリーン）インスタンスによって制御
+- **ワールド読み込み**: メソッド`a(cn var1)`がワールド遷移を処理
+- **一時停止/フォーカス**: ウィンドウがフォーカスを失ったときのゲーム一時停止を管理
 
-## 2. Coordinate System and Math Utilities
+## 2. 座標システムと数学ユーティリティ
 
-### Position Class (a.java)
+### 位置クラス (a.java)
 ```java
 public class a {
-    public final int a; // X coordinate
-    public final int b; // Y coordinate  
-    public final int c; // Z coordinate
-    public final int d; // Packed coordinate (X | Y<<10 | Z<<20)
+    public final int a; // X座標
+    public final int b; // Y座標  
+    public final int c; // Z座標
+    public final int d; // パック座標 (X | Y<<10 | Z<<20)
 }
 ```
 
-**Purpose**: Immutable 3D integer coordinate for block positions
-**Packing**: Uses bit manipulation for efficient storage and hashing
-- X: 10 bits (0-1023)
-- Y: 10 bits (0-1023) 
-- Z: 10 bits (0-1023)
+**目的**: ブロック位置用の不変3D整数座標
+**パッキング**: 効率的なストレージとハッシュ化のためにビット操作を使用
+- X: 10ビット (0-1023)
+- Y: 10ビット (0-1023) 
+- Z: 10ビット (0-1023)
 
-**Key Methods**:
-- `a(a var1)`: Distance calculation between positions
-- `equals(Object var1)`: Equality based on packed coordinate
-- `hashCode()`: Returns packed coordinate for HashMap usage
+**主要メソッド**:
+- `a(a var1)`: 位置間の距離計算
+- `equals(Object var1)`: パック座標に基づく等価性
+- `hashCode()`: HashMap使用用にパック座標を返す
 
-### Math Utilities (eo.java)
+### 数学ユーティリティ (eo.java)
 
-#### Trigonometry Optimization
+#### 三角関数最適化
 ```java
-private static float[] a = new float[65536]; // Sin lookup table
+private static float[] a = new float[65536]; // Sinルックアップテーブル
 
-// Fast sine using lookup table
+// ルックアップテーブルを使用した高速サイン
 public static final float a(float var0) {
     return a[(int)(var0 * 10430.378F) & '\uffff'];
 }
 
-// Fast cosine using offset lookup
+// オフセットルックアップを使用した高速コサイン
 public static final float b(float var0) {
     return a[(int)(var0 * 10430.378F + 16384.0F) & '\uffff'];
 }
 ```
 
-**Optimization Strategy**: Pre-computed sine table with 65536 entries
-- Index calculation: `angle * 10430.378F` maps to table indices
-- Bit masking `& '\uffff'` handles wraparound
-- Cosine uses sine table with π/2 offset
+**最適化戦略**: 65536エントリの事前計算されたサインテーブル
+- インデックス計算: `angle * 10430.378F` がテーブルインデックスにマップ
+- ビットマスキング `& '\uffff'` がラップアラウンドを処理
+- コサインはπ/2オフセットでサインテーブルを使用
 
-#### Utility Functions
-- `c(float var0)`: Fast square root
-- `d(float var0)`: Floor function with proper negative handling
-- `e(float var0)`: Absolute value
-- `a(double var0, double var2)`: Maximum of two values
-- `a(int var0, int var1)`: Integer division with proper negative handling
+#### ユーティリティ関数
+- `c(float var0)`: 高速平方根
+- `d(float var0)`: 負の数の適切な処理付き床関数
+- `e(float var0)`: 絶対値
+- `a(double var0, double var2)`: 2つの値の最大値
+- `a(int var0, int var1)`: 負の数の適切な処理付き整数除算
 
-## 3. OpenGL Utilities (df.java)
+## 3. OpenGLユーティリティ (df.java)
 
-### Resource Management
+### リソース管理
 ```java
 public class df {
-    private static List a = new ArrayList(); // Display lists tracking
-    private static List b = new ArrayList(); // Textures tracking
+    private static List a = new ArrayList(); // ディスプレイリスト追跡
+    private static List b = new ArrayList(); // テクスチャ追跡
 }
 ```
 
-**Purpose**: Centralized OpenGL resource management and cleanup
+**目的**: 中央集権化されたOpenGLリソース管理とクリーンアップ
 
-#### Display List Management
+#### ディスプレイリスト管理
 ```java
 public static synchronized int a(int var0) {
     int var1 = GL11.glGenLists(var0);
@@ -129,15 +129,15 @@ public static synchronized int a(int var0) {
 }
 ```
 
-#### Texture Management
+#### テクスチャ管理
 ```java
 public static synchronized void a(IntBuffer var0) {
     GL11.glGenTextures(var0);
-    // Track all generated texture IDs for cleanup
+    // クリーンアップ用に生成されたすべてのテクスチャIDを追跡
 }
 ```
 
-#### Buffer Management
+#### バッファ管理
 ```java
 public static synchronized ByteBuffer b(int var0) {
     ByteBuffer var1 = ByteBuffer.allocateDirect(var0).order(ByteOrder.nativeOrder());
@@ -145,79 +145,79 @@ public static synchronized ByteBuffer b(int var0) {
 }
 
 public static IntBuffer c(int var0) {
-    return b(var0 << 2).asIntBuffer(); // Int buffer = 4 bytes per int
+    return b(var0 << 2).asIntBuffer(); // Intバッファ = intあたり4バイト
 }
 
 public static FloatBuffer d(int var0) {
-    return b(var0 << 2).asFloatBuffer(); // Float buffer = 4 bytes per float
+    return b(var0 << 2).asFloatBuffer(); // Floatバッファ = floatあたり4バイト
 }
 ```
 
-**Key Features**:
-- Direct buffer allocation for optimal OpenGL performance
-- Native byte order for cross-platform compatibility
-- Automatic resource cleanup on shutdown
+**主要機能**:
+- 最適なOpenGLパフォーマンス用の直接バッファ確保
+- クロスプラットフォーム互換性用のネイティブバイト順
+- シャットダウン時の自動リソースクリーンアップ
 
-## 4. Input System Architecture
+## 4. 入力システムアーキテクチャ
 
-### Input Processing Pipeline
-1. **Event Polling**: `Mouse.next()` and `Keyboard.next()` in main loop
-2. **State Management**: Current and previous input states tracked
-3. **Event Dispatch**: Sent to either game world or GUI based on current screen
-4. **Binding System**: Key bindings stored in player settings
+### 入力処理パイプライン
+1. **イベントポーリング**: メインループ内の`Mouse.next()`と`Keyboard.next()`
+2. **状態管理**: 現在と以前の入力状態を追跡
+3. **イベント配布**: 現在のスクリーンに基づきゲームワールドまたはGUIに送信
+4. **バインドシステム**: キーバインドがプレイヤー設定に保存
 
-### Mouse Input
-- **Button Handling**: Left click (break), Right click (place/use), Middle click (pick block)
-- **Wheel Scrolling**: Hotbar slot selection
-- **Movement**: Camera rotation when mouse is grabbed
+### マウス入力
+- **ボタン処理**: 左クリック（破壊）、右クリック（配置/使用）、中クリック（ブロック選択）
+- **ホイールスクロール**: ホットバースロット選択
+- **移動**: マウスが捕獲されているときのカメラ回転
 
-### Keyboard Input
-- **Movement Keys**: WASD for movement, Space for jump, Shift for sneak
-- **Inventory Keys**: 1-9 for hotbar, E for inventory
-- **System Keys**: F11 for fullscreen, ESC for pause menu
+### キーボード入力
+- **移動キー**: WASDで移動、Spaceでジャンプ、Shiftでスニーク
+- **インベントリキー**: 1-9でホットバー、Eでインベントリ
+- **システムキー**: F11でフルスクリーン、ESCで一時停止メニュー
 
-## 5. Memory Management
+## 5. メモリ管理
 
-### Object Pooling
-- **Display Lists**: Reused for chunk rendering
-- **Buffers**: Pooled to reduce garbage collection
-- **Entities**: Object pools for frequently spawned entities
+### オブジェクトプーリング
+- **ディスプレイリスト**: チャンクレンダリング用に再利用
+- **バッファ**: ガベージコレクションを削減するためにプール
+- **エンティティ**: 頻繁にスポーンするエンティティ用のオブジェクトプール
 
-### Garbage Collection Optimization
-- **Direct Buffers**: Used for OpenGL data to avoid GC pressure
-- **Immutable Objects**: Position and coordinate objects are immutable
-- **Pre-allocation**: Large arrays pre-allocated to avoid runtime allocation
+### ガベージコレクション最適化
+- **直接バッファ**: GCプレッシャーを避けるためにOpenGLデータに使用
+- **不変オブジェクト**: 位置と座標オブジェクトは不変
+- **事前確保**: ランタイム確保を避けるために大きな配列を事前確保
 
-## 6. Performance Considerations
+## 6. パフォーマンス考慮事項
 
-### Rendering Optimizations
-- **Frustum Culling**: Only render visible chunks
-- **Occlusion Queries**: Hardware-accelerated visibility testing
-- **Display Lists**: Pre-compiled geometry for static blocks
+### レンダリング最適化
+- **視錐台カリング**: 可視チャンクのみをレンダリング
+- **オクルージョンクエリ**: ハードウェアアクセラレーション可視性テスト
+- **ディスプレイリスト**: 静的ブロック用の事前コンパイルジオメトリ
 
-### Threading
-- **Main Thread**: Game logic and rendering
-- **Chunk Loading**: Separate thread for world generation
-- **Resource Loading**: Background loading of textures and sounds
+### スレッド化
+- **メインスレッド**: ゲームロジックとレンダリング
+- **チャンク読み込み**: ワールド生成用の別スレッド
+- **リソース読み込み**: テクスチャとサウンドのバックグラウンド読み込み
 
-### Memory Layout
-- **Chunk Storage**: 16x16x128 block arrays
-- **Block Data**: Single byte per block (type + metadata)
-- **Entity Lists**: Spatially partitioned for efficient updates
+### メモリレイアウト
+- **チャンクストレージ**: 16x16x128ブロック配列
+- **ブロックデータ**: ブロックあたり1バイト（タイプ + メタデータ）
+- **エンティティリスト**: 効率的な更新用の空間分割
 
-## Rust Implementation Notes
+## Rust実装ノート
 
-### Data Structures
-- Use `Vec<i8>` for block data with typed wrappers
-- Implement coordinate struct with `#[repr(C)]` for packed representation
-- Use `Arc<Mutex<>>` for thread-safe resource sharing
+### データ構造
+- ブロックデータに`Vec<i8>`を型付きラッパーで使用
+- パック表現用に`#[repr(C)]`で座標構造体を実装
+- スレッドセーフなリソース共有に`Arc<Mutex<>>`を使用
 
-### Performance
-- Implement lookup tables for trigonometric functions
-- Use memory pools for frequently allocated objects
-- Leverage Rust's zero-cost abstractions for math operations
+### パフォーマンス
+- 三角関数用にルックアップテーブルを実装
+- 頻繁に確保されるオブジェクト用にメモリプールを使用
+- 数学操作用にRustのゼロコスト抽象化を活用
 
-### Safety
-- Replace raw OpenGL calls with safe wrappers
-- Use RAII for resource management
-- Implement proper error handling for OpenGL operations
+### 安全性
+- 生のOpenGL呼び出しを安全なラッパーで置換
+- リソース管理用にRAIIを使用
+- OpenGL操作用の適切なエラーハンドリングを実装

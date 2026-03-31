@@ -1,235 +1,235 @@
-# Minecraft Alpha 1.1.2_01 - Complete Architecture Overview
+# Minecraft Alpha 1.1.2_01 - 完全アーキテクチャ概要
 
-## Executive Summary
+## 実行概要
 
-This document provides a comprehensive cleanroom reverse engineering specification for Minecraft Alpha 1.1.2_01, enabling a complete Rust reimplementation. The analysis covers all major systems with sufficient detail for "dirty team" level reverse engineering.
+このドキュメントは、Minecraft Alpha 1.1.2_01の完全なクリーンルーム逆エンジニアリング仕様を提供し、完全なRust再実装を可能にします。分析には「ダーティーチーム」レベルの逆エンジニアリングに十分な詳細で全ての主要システムをカバーしています。
 
-## System Architecture
+## システムアーキテクチャ
 
-### High-Level Architecture
+### 高レベルアーキテクチャ
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Minecraft Client                        │
+│                    Minecraftクライアント                    │
 ├─────────────────────────────────────────────────────────────┤
-│  Game Loop (Minecraft.java)                              │
-│  ├── Input Management                                      │
-│  ├── World Updates                                        │
-│  ├── Rendering Pipeline                                    │
-│  └── Audio System                                        │
+│  ゲームループ (Minecraft.java)                              │
+│  ├── 入力管理                                              │
+│  ├── ワールド更新                                          │
+│  ├── レンダリングパイプライン                                │
+│  └── オーディオシステム                                    │
 ├─────────────────────────────────────────────────────────────┤
-│  World System (cn.java)                                   │
-│  ├── Chunk Management (ga.java)                            │
-│  ├── Entity System                                        │
-│  ├── Block System                                         │
-│  └── Save/Load System                                    │
+│  ワールドシステム (cn.java)                                 │
+│  ├── チャンク管理 (ga.java)                                │
+│  ├── エンティティシステム                                  │
+│  ├── ブロックシステム                                      │
+│  └── セーブ/ロードシステム                                │
 ├─────────────────────────────────────────────────────────────┤
-│  Rendering Engine (e.java)                                 │
-│  ├── Chunk Rendering (bn.java)                             │
-│  ├── Entity Rendering                                      │
-│  ├── Sky/Weather Rendering                                │
-│  └── OpenGL Management (df.java)                           │
+│  レンダリングエンジン (e.java)                             │
+│  ├── チャンクレンダリング (bn.java)                        │
+│  ├── エンティティレンダリング                              │
+│  ├── 空/天候レンダリング                                  │
+│  └── OpenGL管理 (df.java)                                │
 ├─────────────────────────────────────────────────────────────┤
-│  Audio System (paulscode packages)                        │
-│  ├── Sound Engine                                        │
-│  ├── Music Management                                    │
-│  └── Codec Support                                       │
+│  オーディオシステム (paulscode packages)                   │
+│  ├── サウンドエンジン                                    │
+│  ├── 音楽管理                                            │
+│  └── コーデックサポート                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Core Systems Analysis
+## コアシステム分析
 
-### 1. Game Engine (net.minecraft.client.Minecraft)
+### 1. ゲームエンジン (net.minecraft.client.Minecraft)
 
-**Purpose**: Main game loop and system orchestration
-**Key Responsibilities**:
-- Display management and OpenGL context
-- Input event processing and distribution
-- Game state management and transitions
-- Resource loading and coordination
-- Performance monitoring and debugging
+**目的**: メインゲームループとシステム統合
+**主要責任**:
+- ディスプレイ管理とOpenGLコンテキスト
+- 入力イベント処理と配布
+- ゲーム状態管理と遷移
+- リソース読み込みと調整
+- パフォーマンス監視とデバッグ
 
-**Critical Methods**:
-- `run()`: Main game loop with timing
-- `a()`: Display initialization and setup
-- `i()`: Single game tick processing
-- `a(cn var1)`: World loading and management
+**重要なメソッド**:
+- `run()`: タイミング付きメインゲームループ
+- `a()`: ディスプレイ初期化とセットアップ
+- `i()`: 単一ゲームティック処理
+- `a(cn var1)`: ワールド読み込みと管理
 
-**Dependencies**: LWJGL, Audio System, Rendering Engine, World System
+**依存関係**: LWJGL、オーディオシステム、レンダリングエンジン、ワールドシステム
 
-### 2. World System (cn.java)
+### 2. ワールドシステム (cn.java)
 
-**Purpose**: Persistent world state and chunk management
-**Key Responsibilities**:
-- Chunk loading/unloading coordination
-- Entity lifecycle management
-- Block state management
-- World save/load operations
-- Spawn point and world properties
+**目的**: 永続的なワールド状態とチャンク管理
+**主要責任**:
+- チャンク読み込み/アンロード調整
+- エンティティライフサイクル管理
+- ブロック状態管理
+- ワールドセーブ/ロード操作
+- スポーンポイントとワールドプロパティ
 
-**Data Structures**:
-- Chunk storage with spatial indexing
-- Entity lists with spatial partitioning
-- World properties (seed, time, spawn)
-- Save file management
+**データ構造**:
+- 空間インデックス付きチャンクストレージ
+- 空間分割付きエンティティリスト
+- ワールドプロパティ（シード、時間、スポーン）
+- セーブファイル管理
 
-**Performance Characteristics**:
-- Circular chunk loading around player
-- Distance-based chunk priority
-- Background chunk generation
-- Memory-efficient block storage
+**パフォーマンス特性**:
+- プレイヤー周辺の円形チャンク読み込み
+- 距離ベースのチャンク優先度
+- バックグラウンドチャンク生成
+- メモリ効率的なブロックストレージ
 
-### 3. Chunk System (ga.java)
+### 3. チャンクシステム (ga.java)
 
-**Purpose**: 16×16×128 block volume with metadata
-**Key Responsibilities**:
-- Block data storage and access
-- Height map calculation and caching
-- Light propagation management
-- Entity and tile entity storage
-- Serialization for save/load
+**目的**: メタデータ付き16×16×128ブロックボリューム
+**主要責任**:
+- ブロックデータストレージとアクセス
+- 高さマップ計算とキャッシュ
+- 光伝播管理
+- エンティティとタイルエンティティストレージ
+- セーブ/ロード用シリアライズ
 
-**Storage Format**:
-- Block types: 32,768 bytes (16×16×128)
-- Metadata: 16,384 nibbles (4 bits per block)
-- Height map: 256 bytes (16×16)
-- Light data: 32,768 bytes (block + sky light)
+**ストレージ形式**:
+- ブロックタイプ: 32,768バイト（16×16×128）
+- メタデータ: 16,384ニブル（ブロックあたり4ビット）
+- 高さマップ: 256バイト（16×16）
+- 光源データ: 32,768バイト（ブロック + 空光源）
 
-**Optimizations**:
-- Compressed metadata storage
-- Pre-calculated height maps
-- Spatial entity partitioning
-- Dirty flagging for selective updates
+**最適化**:
+- 圧縮メタデータストレージ
+- 事前計算された高さマップ
+- 空間エンティティ分割
+- 選択的更新用ダーティーフラグ
 
-### 4. Rendering Engine (e.java)
+### 4. レンダリングエンジン (e.java)
 
-**Purpose**: OpenGL-based 3D rendering pipeline
-**Key Responsibilities**:
-- Chunk rendering with display lists
-- Entity rendering and animation
-- Frustum culling and occlusion queries
-- Sky and weather effects
-- Camera management and interpolation
+**目的**: OpenGLベースの3Dレンダリングパイプライン
+**主要責任**:
+- ディスプレイリストによるチャンクレンダリング
+- エンティティレンダリングとアニメーション
+- 視錐台カリングとオクルージョンクエリ
+- 空と天候エフェクト
+- カメラ管理と補間
 
-**Rendering Pipeline**:
-1. **Culling Phase**: Frustum and occlusion culling
-2. **Collection Phase**: Gather visible chunks/entities
-3. **Sorting Phase**: Distance-based rendering order
-4. **Rendering Phase**: OpenGL draw calls
-5. **Effects Phase**: Sky, weather, particles
+**レンダリングパイプライン**:
+1. **カリングフェーズ**: 視錐台カリングとオクルージョンカリング
+2. **コレクションフェーズ**: 可視チャンク/エンティティの収集
+3. **ソートフェーズ**: 距離ベースのレンダリング順序
+4. **レンダリングフェーズ**: OpenGL描画呼び出し
+5. **エフェクトフェーズ**: 空、天候、パーティクル
 
-**Performance Features**:
-- Hardware occlusion queries
-- Display list caching
-- Distance-based LOD
-- Batched geometry rendering
+**パフォーマンス機能**:
+- ハードウェアオクルージョンクエリ
+- ディスプレイリストキャッシュ
+- 距離ベースLOD
+- バッチ化されたジオメトリレンダリング
 
-### 5. Block System (ly.java, jt.java)
+### 5. ブロックシステム (ly.java, jt.java)
 
-**Purpose**: Block type registry and behavior
-**Key Responsibilities**:
-- Block property definitions
-- Rendering and collision behavior
-- Interaction and placement logic
-- Light propagation rules
+**目的**: ブロックタイプレジストリと動作
+**主要責任**:
+- ブロックプロパティ定義
+- レンダリングと衝突動作
+- 操作と配置ロジック
+- 光伝播ルール
 
-**Block Properties**:
-- Material type (solid, transparent, liquid)
-- Light emission/transmission
-- Render layer (solid/transparent)
-- Collision bounds
-- Tool effectiveness
+**ブロックプロパティ**:
+- 素材タイプ（固体、透明、液体）
+- 光放射/伝達
+- レンダリングレイヤー（固体/透明）
+- 衝突境界
+- ツール有効性
 
-### 6. Entity System (nq.java, bi.java)
+### 6. エンティティシステム (nq.java, bi.java)
 
-**Purpose**: Dynamic object management
-**Key Responsibilities**:
-- Entity lifecycle and spawning
-- Physics and movement
-- AI and behavior systems
-- Collision detection
-- Rendering integration
+**目的**: 動的オブジェクト管理
+**主要責任**:
+- エンティティライフサイクルとスポーン
+- 物理と移動
+- AIと動作システム
+- 衝突検出
+- レンダリング統合
 
-**Entity Types**:
-- Player entities with inventory
-- Mobs with AI behaviors
-- Item entities with physics
-- Projectile entities
-- Tile entities with custom logic
+**エンティティタイプ**:
+- インベントリ付きプレイヤーエンティティ
+- AI動作付きモブ
+- 物理付きアイテムエンティティ
+- 投射物エンティティ
+- カスタムロジック付きタイルエンティティ
 
-### 7. Input System
+### 7. 入力システム
 
-**Purpose**: User input processing and binding
-**Key Responsibilities**:
-- Keyboard and mouse event handling
-- Input binding and configuration
-- GUI vs game mode switching
-- Multi-button combinations
+**目的**: ユーザー入力処理とバインド
+**主要責任**:
+- キーボードとマウスイベント処理
+- 入力バインドと設定
+- GUIとゲームモードの切り替え
+- マルチボタン組み合わせ
 
-**Input Flow**:
-1. Raw input capture (LWJGL)
-2. State tracking (current/previous)
-3. Binding resolution
-4. Context-aware dispatch
-5. Action execution
+**入力フロー**:
+1. 生入力キャプチャ（LWJGL）
+2. 状態追跡（現在/以前）
+3. バインド解決
+4. コンテキスト認識配布
+5. アクション実行
 
-### 8. Audio System (paulscode)
+### 8. オーディオシステム (paulscode)
 
-**Purpose**: Sound and music playback
-**Key Responsibilities**:
-- 3D positional audio
-- Music streaming and management
-- Sound effect triggering
-- Audio resource loading
-- Volume and distance attenuation
+**目的**: サウンドと音楽再生
+**主要責任**:
+- 3Dポジショナルオーディオ
+- 音楽ストリーミングと管理
+- サウンドエフェクトトリガー
+- オーディオリソース読み込み
+- 音量と距離減衰
 
-**Audio Features**:
-- Hardware-accelerated 3D audio
-- Dynamic music system
-- Environmental audio effects
-- Resource streaming for large files
+**オーディオ機能**:
+- ハードウェアアクセラレーション付き3Dオーディオ
+- 動的音楽システム
+- 環境オーディオエフェクト
+- 大きなファイル用リソースストリーミング
 
-## Data Flow Analysis
+## データフロー分析
 
-### Game Loop Data Flow
+### ゲームループデータフロー
 ```
-Input Events → Game State → World Updates → Entity Updates → 
-Chunk Updates → Rendering → Audio → Display
-```
-
-### World Loading Flow
-```
-Level.dat → World Properties → Chunk Provider → 
-Chunk Generation → Entity Spawning → Player Spawn
+入力イベント → ゲーム状態 → ワールド更新 → エンティティ更新 → 
+チャンク更新 → レンダリング → オーディオ → ディスプレイ
 ```
 
-### Rendering Pipeline Flow
+### ワールド読み込みフロー
 ```
-Camera Position → Frustum Culling → Chunk Collection → 
-Distance Sorting → Display List Rendering → Entity Rendering → 
-Effects Rendering → Swap Buffers
+Level.dat → ワールドプロパティ → チャンクプロバイダー → 
+チャンク生成 → エンティティスポーン → プレイヤースポーン
 ```
 
-## Performance Characteristics
+### レンダリングパイプラインフロー
+```
+カメラ位置 → 視錐台カリング → チャンクコレクション → 
+距離ソート → ディスプレイリストレンダリング → エンティティレンダリング → 
+エフェクトレンダリング → バッファスワップ
+```
 
-### Memory Usage
-- **Per Chunk**: ~200KB (blocks + metadata + light)
-- **Render Distance**: 64 chunks = ~12.8MB
-- **Entity Data**: Variable, typically <50MB
-- **Audio Resources**: ~10MB for all sounds
-- **Total Usage**: 100-200MB typical
+## パフォーマンス特性
 
-### CPU Usage
-- **Game Logic**: 20% (single thread)
-- **Chunk Generation**: 30% (background thread)
-- **Rendering**: 40% (main thread)
-- **Audio**: 5% (separate thread)
-- **Other**: 5%
+### メモリ使用量
+- **チャンクあたり**: ~200KB（ブロック + メタデータ + 光源）
+- **描画距離**: 64チャンク = ~12.8MB
+- **エンティティデータ**: 可変、通常<50MB
+- **オーディオリソース**: 全サウンドで~10MB
+- **総使用量**: 通常100-200MB
 
-### GPU Usage
-- **Geometry**: 60% (chunk rendering)
-- **Entities**: 20% (models and animations)
-- **Effects**: 15% (sky, weather, particles)
-- **UI**: 5% (HUD and menus)
+### CPU使用量
+- **ゲームロジック**: 20%（シングルスレッド）
+- **チャンク生成**: 30%（バックグラウンドスレッド）
+- **レンダリング**: 40%（メインスレッド）
+- **オーディオ**: 5%（別スレッド）
+- **その他**: 5%
+
+### GPU使用量
+- **ジオメトリ**: 60%（チャンクレンダリング）
+- **エンティティ**: 20%（モデルとアニメーション）
+- **エフェクト**: 15%（空、天候、パーティクル）
+- **UI**: 5%（HUDとメニュー）
 
 ## File Format Analysis
 

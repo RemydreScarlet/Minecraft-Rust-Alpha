@@ -1,106 +1,106 @@
-# Minecraft Alpha 1.1.2_01 Cleanroom Reverse Engineering Documentation
+# Minecraft Alpha 1.1.2_01 クリーンルーム逆エンジニアリングドキュメント
 
-## Overview
+## 概要
 
-This repository contains comprehensive cleanroom reverse engineering documentation for Minecraft Alpha 1.1.2_01, created to enable a complete Rust reimplementation. The documentation follows "dirty team" level detail, providing sufficient technical information for reimplementation while maintaining cleanroom methodology.
+このリポジトリには、Minecraft Alpha 1.1.2_01の完全なクリーンルーム逆エンジニアリングドキュメントが含まれており、完全なRust再実装を可能にします。ドキュメントは「ダーティーチーム」レベルの詳細に従って作成され、再実装に十分な技術情報を提供しながらクリーンルーム手法を維持しています。
 
-## Documentation Structure
+## ドキュメント構成
 
-### Core Documentation
-- **[00-architecture-overview.md](00-architecture-overview.md)** - Complete system architecture and implementation guide
-- **[01-core-infrastructure.md](01-core-infrastructure.md)** - Game loop, math utilities, and OpenGL management
-- **[02-world-system.md](02-world-system.md)** - World and chunk system detailed analysis
-- **[03-rendering-system.md](03-rendering-system.md)** - Rendering engine and graphics pipeline
+### コアドキュメント
+- **[00-architecture-overview.md](00-architecture-overview.md)** - 完全なシステムアーキテクチャと実装ガイド
+- **[01-core-infrastructure.md](01-core-infrastructure.md)** - ゲームループ、数学ユーティリティ、OpenGL管理
+- **[02-world-system.md](02-world-system.md)** - ワールドとチャンクシステムの詳細分析
+- **[03-rendering-system.md](03-rendering-system.md)** - レンダリングエンジンとグラフィックスパイプライン
 
-### Source Analysis
-- **[../mc/](../mc/)** - Complete decompiled Java source code
-- **[../mc/META-INF/](../mc/META-INF/)** - JAR manifest and file hashes
-- **[../mc/assets/](../mc/)** - Game resources (textures, sounds, models)
+### ソースコード解析
+- **[../mc/](../mc/)** - 完全な逆コンパイルされたJavaソースコード
+- **[../mc/META-INF/](../mc/META-INF/)** - JARマニフェストとファイルハッシュ
+- **[../mc/assets/](../mc/)** - ゲームリソース（テクスチャ、サウンド、モデル）
 
-## Key Findings
+## 主要な発見
 
-### Architecture Highlights
-- **Game Engine**: Single-threaded game loop with 20 TPS timing
-- **World System**: Chunk-based (16×16×128) with spatial indexing
-- **Rendering**: OpenGL with display lists, frustum culling, and occlusion queries
-- **Entity System**: Spatially partitioned with Y-section optimization
-- **Audio**: 3D positional audio with hardware acceleration
+### アーキテクチャの要点
+- **ゲームエンジン**: 20 TPSタイミングのシングルスレッドゲームループ
+- **ワールドシステム**: 空間インデックス付きチャンクベース（16×16×128）
+- **レンダリング**: ディスプレイリスト、視錐台カリング、オクルージョンクエリを使用したOpenGL
+- **エンティティシステム**: Yセクション最適化付き空間分割
+- **オーディオ**: ハードウェアアクセラレーション付き3Dポジショナルオーディオ
 
-### Performance Characteristics
-- **Memory**: ~200MB typical usage (100-200MB range)
-- **CPU**: Multi-threaded (main + chunk generation + audio)
-- **GPU**: OpenGL 1.1 compatible with optimization techniques
-- **File Format**: NBT-based world storage with region files
+### パフォーマンス特性
+- **メモリ**: 通常約200MB使用（100-200MB範囲）
+- **CPU**: マルチスレッド（メイン + チャンク生成 + オーディオ）
+- **GPU**: OpenGL 1.1互換で最適化技術を使用
+- **ファイル形式**: NBTベースのワールドストレージとリージョンファイル
 
-### Technical Specifications
-- **Coordinate System**: Integer world coordinates (±32,000,000 limit)
-- **Block Storage**: 1 byte per block + 4-bit metadata
-- **Chunk Format**: 32,768 blocks + light data + entities
-- **Render Distance**: Configurable, default 64 chunks radius
+### 技術仕様
+- **座標システム**: 整数ワールド座標（±32,000,000制限）
+- **ブロックストレージ**: ブロックあたり1バイト + 4ビットメタデータ
+- **チャンク形式**: 32,768ブロック + 光源データ + エンティティ
+- **描画距離**: 設定可能、デフォルト64チャンク半径
 
-## Implementation Guidance
+## 実装ガイダンス
 
-### For Rust Implementation
-1. **Start with foundation** - Math utilities, coordinate systems, OpenGL setup
-2. **Implement world system** - Chunk management, block storage, world generation
-3. **Build rendering engine** - Chunk rendering, frustum culling, entity display
-4. **Add gameplay systems** - Player controller, inventory, entity AI
-5. **Integrate audio** - Sound engine, music system, 3D positioning
+### Rust実装の場合
+1. **基礎から開始** - 数学ユーティリティ、座標システム、OpenGLセットアップ
+2. **ワールドシステムを実装** - チャンク管理、ブロックストレージ、ワールド生成
+3. **レンダリングエンジンを構築** - チャンクレンダリング、視錐台カリング、エンティティ表示
+4. **ゲームプレイシステムを追加** - プレイヤーコントローラー、インベントリ、エンティティAI
+5. **オーディオを統合** - サウンドエンジン、音楽システム、3Dポジショニング
 
-### Key Design Decisions
-- Use `Arc<Mutex<>>` for thread-safe shared data
-- Implement object pools for performance optimization
-- Create safe OpenGL wrappers over raw calls
-- Leverage Rust's ownership for resource management
+### 主要な設計判断
+- スレッドセーフな共有データに`Arc<Mutex<>>`を使用
+- パフォーマンス最適化のためにオブジェクトプールを実装
+- 生の呼び出しの上に安全なOpenGLラッパーを作成
+- リソース管理のためにRustの所有権を活用
 
-## Cleanroom Compliance
+## クリーンルーム準拠
 
-This documentation is created following cleanroom reverse engineering methodology:
+このドキュメントはクリーンルーム逆エンジニアリング手法に従って作成されています：
 
-1. **No Original Code**: All documentation is original analysis and description
-2. **Independent Discovery**: All technical details discovered through analysis
-3. **Functional Description**: Focus on behavior and interfaces, not code structure
-4. **Public Information**: Only analyzes publicly available executable
+1. **オリジナルコードなし**: すべてのドキュメントはオリジナルの分析と説明
+2. **独立した発見**: すべての技術詳細は分析を通じて発見
+3. **機能的説明**: コード構造ではなく動作とインターフェースに焦点
+4. **公開情報**: 公開利用可能な実行ファイルのみを分析
 
-## Usage
+## 使用方法
 
-This documentation enables:
-- Complete reimplementation in any programming language
-- Understanding of Minecraft Alpha's technical architecture
-- Learning of game development techniques and optimizations
-- Reference for voxel-based game engine development
+このドキュメントにより以下が可能になります：
+- 任意のプログラミング言語での完全な再実装
+- Minecraft Alphaの技術アーキテクチャの理解
+- ゲーム開発技術と最適化の学習
+- ボクセルベースゲームエンジン開発のリファレンス
 
-## Files Referenced
+## 参照ファイル
 
-### Core Java Classes
-- `net.minecraft.client.Minecraft` - Main game class
-- `cn` - World management
-- `ga` - Chunk system
-- `e` - Rendering engine
-- `bn` - Chunk renderer
-- `ly` - Block registry
-- `nq` - Entity base class
-- `bi` - Player entity
+### コアJavaクラス
+- `net.minecraft.client.Minecraft` - メインゲームクラス
+- `cn` - ワールド管理
+- `ga` - チャンクシステム
+- `e` - レンダリングエンジン
+- `bn` - チャンクレンダラー
+- `ly` - ブロックレジストリ
+- `nq` - エンティティ基底クラス
+- `bi` - プレイヤーエンティティ
 
-### Resource Files
-- `terrain.png` - Block texture atlas
-- `char.png` - Entity texture atlas
-- `*.png` - Various UI and effect textures
-- Sound files in `paulscode/` packages
+### リソースファイル
+- `terrain.png` - ブロックテクスチャアトラス
+- `char.png` - エンティティテクスチャアトラス
+- `*.png` - 各種UIおよびエフェクトテクスチャ
+- `paulscode/`パッケージ内のサウンドファイル
 
-## Contributing
+## 貢献
 
-This documentation is part of a cleanroom reverse engineering project. When using this information:
+このドキュメントはクリーンルーム逆エンジニアリングプロジェクトの一部です。この情報を使用する際：
 
-1. Maintain cleanroom methodology
-2. Document any additional discoveries
-3. Share improvements and corrections
-4. Credit the original analysis work
+1. クリーンルーム手法を維持
+2. 追加の発見を文書化
+3. 改善と修正を共有
+4. オリジナルの分析作業をクレジット
 
-## License
+## ライセンス
 
-This documentation is provided for educational and reverse engineering purposes. The original Minecraft Alpha 1.1.2_01 remains property of Mojang Studios.
+このドキュメントは教育および逆エンジニアリング目的で提供されます。オリジナルのMinecraft Alpha 1.1.2_01はMojang Studiosの財産であり続けます。
 
 ---
 
-**Note**: This documentation represents significant technical analysis work and should be used responsibly in accordance with applicable laws and terms of service.
+**注**: このドキュメントは重要な技術分析作業を表しており、適用される法律および利用規約に従って責任を持って使用する必要があります。
