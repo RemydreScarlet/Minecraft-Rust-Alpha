@@ -27,6 +27,9 @@ pub struct InputState {
     
     // Capture state change flag
     pub capture_changed: bool,
+    
+    // Debug toggle
+    pub debug_toggle_pressed: bool,
 }
 
 impl InputState {
@@ -92,6 +95,12 @@ impl InputState {
                     }
                     winit::keyboard::NamedKey::Shift => {
                         self.move_down = pressed;
+                        true
+                    }
+                    winit::keyboard::NamedKey::F3 => {
+                        if pressed {
+                            self.debug_toggle_pressed = true;
+                        }
                         true
                     }
                     _ => false,
@@ -171,6 +180,7 @@ impl InputState {
         self.mouse_delta_x = 0.0;
         self.mouse_delta_y = 0.0;
         self.capture_changed = false;
+        self.debug_toggle_pressed = false;
     }
     
     /// Check if any movement key is pressed

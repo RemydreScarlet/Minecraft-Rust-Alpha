@@ -337,6 +337,16 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
         }
     }
+    
+    /// Get reference to the device (for HUD system)
+    pub fn get_device(&self) -> &Device {
+        &self.device
+    }
+    
+    /// Get reference to the surface configuration (for HUD system)
+    pub fn get_config(&self) -> &SurfaceConfiguration {
+        &self.config
+    }
 }
 
 /// Create empty chunk buffers as placeholder

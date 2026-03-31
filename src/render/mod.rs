@@ -6,6 +6,7 @@
 pub mod renderer;
 pub mod chunk_renderer;
 pub mod chunk_mesh;
+pub mod hud;
 pub mod entity_renderer;
 pub mod gl_wrapper;
 pub mod frustum;

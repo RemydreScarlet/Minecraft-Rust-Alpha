@@ -134,4 +134,19 @@ impl World {
             player.update();
         }
     }
+    
+    /// Get the first player (for single player mode)
+    pub fn get_player(&self) -> Option<&Player> {
+        self.players.first()
+    }
+    
+    /// Get the first player as mutable (for single player mode)
+    pub fn get_player_mut(&mut self) -> Option<&mut Player> {
+        self.players.first_mut()
+    }
+    
+    /// Add a player to the world
+    pub fn add_player(&mut self, player: Player) {
+        self.players.push(player);
+    }
 }

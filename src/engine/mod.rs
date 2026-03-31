@@ -12,6 +12,7 @@ pub mod threading;
 use crate::world::world_manager::World;
 use crate::engine::threading::ThreadManager;
 use crate::render::Renderer;
+use crate::render::hud::HUD;
 use crate::camera::Camera;
 use crate::input::InputState;
 
@@ -31,7 +32,7 @@ impl Engine {
     }
     
     /// Run the main game loop with WebGPU rendering
-    pub fn run(&mut self, world: World) -> Result<()> {
+    pub fn run(&mut self, mut world: World) -> Result<()> {
         let event_loop = EventLoop::new()?;
         
         let window = WindowBuilder::new()
@@ -41,6 +42,10 @@ impl Engine {
         
         // Initialize renderer
         let mut renderer = pollster::block_on(Renderer::new(&window))?;
+        
+        // Initialize HUD system
+        let mut hud = HUD::new();
+        hud.update_webgpu_info(renderer.get_device(), renderer.get_config());
         
         // Update renderer with world data
         renderer.update_world(&world)?;
@@ -53,6 +58,7 @@ impl Engine {
         println!("WebGPU initialized successfully");
         println!("Starting chunk-based world rendering...");
         println!("Controls: WASD to move, Space/Shift to fly up/down, Mouse to look, Click to capture mouse, Escape to release");
+        println!("Debug: Press F3 to toggle debug information");
         
         let _thread_manager = self.thread_manager.take().unwrap();
         
@@ -63,6 +69,29 @@ impl Engine {
                     let current_time = Instant::now();
                     let delta_time = current_time.duration_since(last_time).as_secs_f32();
                     last_time = current_time;
+                    
+                    // Handle F3 debug toggle
+                    if input.debug_toggle_pressed {
+                        hud.toggle_debug();
+                        if hud.get_debug_info().visible {
+                            println!("=== DEBUG SCREEN ENABLED ===");
+                        } else {
+                            println!("=== DEBUG SCREEN DISABLED ===");
+                        }
+                    }
+                    
+                    // Update HUD with current game state
+                    if let Some(player) = world.get_player() {
+                        hud.update(player, &world, &camera);
+                        
+                        // Print debug info to console if visible
+                        if hud.get_debug_info().visible {
+                            let debug_text = hud.generate_debug_text();
+                            // Clear console and print debug info
+                            print!("\x1B[2J\x1B[1;1H"); // Clear screen and move cursor to top
+                            println!("{}", debug_text);
+                        }
+                    }
                     
                     // Handle mouse capture state changes
                     if input.capture_changed {
@@ -94,6 +123,12 @@ impl Engine {
                     // Update camera based on input
                     camera.process_keyboard(&input, delta_time);
                     camera.process_mouse(input.mouse_delta_x, input.mouse_delta_y);
+                    
+                    // Sync player position with camera for debug display
+                    if let Some(player) = world.get_player_mut() {
+                        let camera_pos = camera.position;
+                        player.set_position(camera_pos.x as f64, camera_pos.y as f64, camera_pos.z as f64);
+                    }
                     
                     // Update renderer with camera view matrix
                     renderer.update_camera(&camera);
